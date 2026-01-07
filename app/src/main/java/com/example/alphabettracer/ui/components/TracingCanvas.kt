@@ -36,6 +36,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +54,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.example.alphabettracer.data.LetterStorage
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -78,6 +82,7 @@ fun TracingCanvas(
     onColorSelected: (Int) -> Unit = {},  // Called when user selects a color
     onCheckResult: (MatchResult) -> Unit  // Only called when user clicks Check button
 ) {
+    val context = LocalContext.current
     var isErase by remember { mutableStateOf(false) }
     val availableColors = listOf(
         Color(0xFF2196F3), // Blue
@@ -87,18 +92,27 @@ fun TracingCanvas(
         Color(0xFF9C27B0), // Purple
         Color(0xFF333333)  // Black
     )
-    var currentColor by remember { mutableStateOf(availableColors[0]) }
+
+    // Load saved color index from storage
+    val savedColorIndex = remember { LetterStorage.getSelectedColor(context) }
+    var currentColor by remember { mutableStateOf(availableColors[savedColorIndex.coerceIn(0, availableColors.lastIndex)]) }
     val strokes = remember { mutableStateListOf<DrawStroke>() }
     var currentStroke by remember { mutableStateOf<MutableList<Offset>>(mutableListOf()) }
     var matchResult by remember { mutableStateOf(MatchResult.NONE) }
     var hasChecked by remember { mutableStateOf(false) }  // Track if user has checked
-    var strokeWidth by remember { mutableStateOf(18f) }
+
+    // Load saved stroke width from storage
+    var strokeWidth by remember { mutableStateOf(LetterStorage.getStrokeWidth(context)) }
     var canvasSize by remember { mutableStateOf(0f) }
     var canvasWidth by remember { mutableStateOf(0f) }
     var canvasHeight by remember { mutableStateOf(0f) }
     var showGuide by remember { mutableStateOf(true) }
     var isPlayingDemo by remember { mutableStateOf(false) }
     var demoProgress by remember { mutableStateOf(0f) }
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    // Color names for the picker
+    val colorNames = listOf("Blue", "Red", "Green", "Orange", "Purple", "Black")
 
     // Animate the demo progress
     LaunchedEffect(isPlayingDemo) {
@@ -330,27 +344,75 @@ fun TracingCanvas(
                         }
                     }
 
-                    // Color palette
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        availableColors.forEachIndexed { index, color ->
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(color)
-                                    .border(
-                                        width = if (currentColor == color) 3.dp else 0.dp,
-                                        color = if (currentColor == color) Color(0xFF333333) else Color.Transparent,
-                                        shape = CircleShape
-                                    )
-                                    .clickable {
+                    // Compact Color Picker with Dropdown
+                    Box {
+                        // Current color button
+                        Surface(
+                            modifier = Modifier
+                                .clickable { showColorPicker = true }
+                                .padding(4.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFF5F5F5)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(currentColor)
+                                        .border(2.dp, Color(0xFF333333), CircleShape)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "▼",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+
+                        // Dropdown menu
+                        DropdownMenu(
+                            expanded = showColorPicker,
+                            onDismissRequest = { showColorPicker = false }
+                        ) {
+                            availableColors.forEachIndexed { index, color ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(color)
+                                                    .border(
+                                                        width = if (currentColor == color) 2.dp else 1.dp,
+                                                        color = if (currentColor == color) Color(0xFF333333) else Color.Gray,
+                                                        shape = CircleShape
+                                                    )
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                colorNames[index],
+                                                fontWeight = if (currentColor == color) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                            if (currentColor == color) {
+                                                Spacer(Modifier.width(8.dp))
+                                                Text("✓", color = Color(0xFF4CAF50))
+                                            }
+                                        }
+                                    },
+                                    onClick = {
                                         currentColor = color
+                                        LetterStorage.saveSelectedColor(context, index)  // Save color preference
                                         onColorSelected(index)
+                                        showColorPicker = false
                                     }
-                            )
+                                )
+                            }
                         }
                     }
                 }
@@ -372,6 +434,9 @@ fun TracingCanvas(
                 Slider(
                     value = strokeWidth,
                     onValueChange = { strokeWidth = it },
+                    onValueChangeFinished = {
+                        LetterStorage.saveStrokeWidth(context, strokeWidth)  // Save stroke width preference
+                    },
                     valueRange = 8f..35f,
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                     colors = SliderDefaults.colors(
