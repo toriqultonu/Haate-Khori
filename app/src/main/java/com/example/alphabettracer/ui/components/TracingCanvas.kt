@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.sharp.AddCircle
 import androidx.compose.material.icons.sharp.Clear
@@ -74,6 +75,7 @@ import kotlin.math.sqrt
 fun TracingCanvas(
     letter: Char,
     modifier: Modifier = Modifier,
+    onColorSelected: (Int) -> Unit = {},  // Called when user selects a color
     onCheckResult: (MatchResult) -> Unit  // Only called when user clicks Check button
 ) {
     var isErase by remember { mutableStateOf(false) }
@@ -95,6 +97,27 @@ fun TracingCanvas(
     var canvasWidth by remember { mutableStateOf(0f) }
     var canvasHeight by remember { mutableStateOf(0f) }
     var showGuide by remember { mutableStateOf(true) }
+    var isPlayingDemo by remember { mutableStateOf(false) }
+    var demoProgress by remember { mutableStateOf(0f) }
+
+    // Animate the demo progress
+    LaunchedEffect(isPlayingDemo) {
+        if (isPlayingDemo) {
+            demoProgress = 0f
+            val startTime = System.currentTimeMillis()
+            val duration = 3000L // 3 seconds for full animation
+            while (System.currentTimeMillis() - startTime < duration && isPlayingDemo) {
+                demoProgress = ((System.currentTimeMillis() - startTime).toFloat() / duration).coerceIn(0f, 1f)
+                kotlinx.coroutines.delay(16) // ~60fps
+            }
+            if (isPlayingDemo) {
+                demoProgress = 1f
+                kotlinx.coroutines.delay(500) // Pause at end
+                isPlayingDemo = false
+                demoProgress = 0f
+            }
+        }
+    }
 
     // Reset strokes when letter changes
     LaunchedEffect(letter) {
@@ -102,6 +125,8 @@ fun TracingCanvas(
         currentStroke.clear()
         matchResult = MatchResult.NONE
         hasChecked = false
+        isPlayingDemo = false
+        demoProgress = 0f
     }
 
     // Function to check the drawing (called when user clicks Check button)
@@ -128,12 +153,46 @@ fun TracingCanvas(
                 },
                 label = "feedback"
             ) { result ->
+                // Randomized encouraging messages for kids
+                val excellentMessages = listOf(
+                    "⭐ WOW! Perfect tracing!",
+                    "⭐ AMAZING! You're a star!",
+                    "⭐ SUPER! You nailed it!",
+                    "⭐ FANTASTIC! Great work!",
+                    "⭐ BRILLIANT! Keep shining!",
+                    "⭐ AWESOME! You did it!"
+                )
+                val goodMessages = listOf(
+                    "👍 Good job! Almost there!",
+                    "👍 Nice try! So close!",
+                    "👍 Great effort! Try again!",
+                    "👍 You're getting better!",
+                    "👍 Keep going! You got this!"
+                )
+                val poorMessages = listOf(
+                    "🔄 Keep trying! You can do it!",
+                    "🔄 Don't give up! Try again!",
+                    "🔄 Practice makes perfect!",
+                    "🔄 Almost! Trace the whole letter!",
+                    "🔄 You're learning! Keep going!"
+                )
+                val noneMessages = listOf(
+                    "Draw more of the letter...",
+                    "Trace the dotted path...",
+                    "Follow the guide dots..."
+                )
+                val promptMessages = listOf(
+                    "✏️ Trace the letter, then tap Check!",
+                    "✏️ Follow the dots and draw!",
+                    "✏️ Ready? Start tracing!"
+                )
+
                 val (bgColor, textColor, message) = when (result) {
-                    MatchResult.EXCELLENT -> Triple(Color(0xFF4CAF50), Color.White, "⭐ Excellent! Perfect tracing!")
-                    MatchResult.GOOD -> Triple(Color(0xFFFFC107), Color(0xFF333333), "👍 Good job! Almost there!")
-                    MatchResult.POOR -> Triple(Color(0xFFFF9800), Color.White, "🔄 Keep trying!")
-                    MatchResult.NONE -> Triple(Color(0xFFE0E0E0), Color.Gray, "Draw more of the letter...")
-                    null -> Triple(Color(0xFF6200EE).copy(alpha = 0.1f), Color(0xFF6200EE), "✏️ Trace the letter, then tap Check!")
+                    MatchResult.EXCELLENT -> Triple(Color(0xFF4CAF50), Color.White, excellentMessages.random())
+                    MatchResult.GOOD -> Triple(Color(0xFFFFC107), Color(0xFF333333), goodMessages.random())
+                    MatchResult.POOR -> Triple(Color(0xFFFF9800), Color.White, poorMessages.random())
+                    MatchResult.NONE -> Triple(Color(0xFFE0E0E0), Color.Gray, noneMessages.random())
+                    null -> Triple(Color(0xFF6200EE).copy(alpha = 0.1f), Color(0xFF6200EE), promptMessages.random())
                 }
                 Surface(
                     color = bgColor,
@@ -224,26 +283,50 @@ fun TracingCanvas(
                             )
                         }
 
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(4.dp))
+
+                        // SHOW ME BUTTON - animated demo
+                        Button(
+                            onClick = { isPlayingDemo = !isPlayingDemo },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isPlayingDemo) Color(0xFFFF9800) else Color(0xFF2196F3)
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                if (isPlayingDemo) "Stop" else "Demo",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Spacer(Modifier.width(4.dp))
 
                         // CHECK BUTTON - prominent button to check drawing
                         Button(
                             onClick = { checkDrawing() },
-                            enabled = strokes.isNotEmpty(),
+                            enabled = strokes.isNotEmpty() && !isPlayingDemo,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF4CAF50),
                                 disabledContainerColor = Color(0xFFE0E0E0)
                             ),
                             shape = RoundedCornerShape(20.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Icon(
                                 Icons.Default.Check,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(Modifier.width(4.dp))
-                            Text("Check", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(Modifier.width(2.dp))
+                            Text("Check", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
 
@@ -252,7 +335,7 @@ fun TracingCanvas(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        availableColors.forEach { color ->
+                        availableColors.forEachIndexed { index, color ->
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
@@ -263,7 +346,10 @@ fun TracingCanvas(
                                         color = if (currentColor == color) Color(0xFF333333) else Color.Transparent,
                                         shape = CircleShape
                                     )
-                                    .clickable { currentColor = color }
+                                    .clickable {
+                                        currentColor = color
+                                        onColorSelected(index)
+                                    }
                             )
                         }
                     }
@@ -371,8 +457,8 @@ fun TracingCanvas(
                     canvasHeight = size.height
 
                     // Draw guide path (dots showing where to trace)
+                    val letterPath = getLetterPath(letter, canvasSize, canvasWidth, canvasHeight)
                     if (showGuide) {
-                        val letterPath = getLetterPath(letter, canvasSize, canvasWidth, canvasHeight)
                         letterPath.forEach { point ->
                             // Draw guide dots
                             drawCircle(
@@ -381,6 +467,54 @@ fun TracingCanvas(
                                 center = point
                             )
                         }
+                    }
+
+                    // Draw animated demo
+                    if (isPlayingDemo && letterPath.isNotEmpty()) {
+                        val currentPointIndex = (demoProgress * (letterPath.size - 1)).toInt()
+                        val trailLength = 30 // Number of trailing points
+
+                        // Draw the trail (fading line behind the dot)
+                        val trailStart = maxOf(0, currentPointIndex - trailLength)
+                        if (currentPointIndex > trailStart) {
+                            val trailPath = Path().apply {
+                                for (i in trailStart..currentPointIndex) {
+                                    val point = letterPath[i]
+                                    if (i == trailStart) moveTo(point.x, point.y)
+                                    else lineTo(point.x, point.y)
+                                }
+                            }
+                            drawPath(
+                                path = trailPath,
+                                color = Color(0xFFFF5722),
+                                style = Stroke(
+                                    width = 12f,
+                                    cap = StrokeCap.Round,
+                                    join = StrokeJoin.Round
+                                )
+                            )
+                        }
+
+                        // Draw the animated dot (current position)
+                        val currentPoint = letterPath[currentPointIndex]
+                        // Outer glow
+                        drawCircle(
+                            color = Color(0xFFFF5722).copy(alpha = 0.3f),
+                            radius = 24f,
+                            center = currentPoint
+                        )
+                        // Inner dot
+                        drawCircle(
+                            color = Color(0xFFFF5722),
+                            radius = 14f,
+                            center = currentPoint
+                        )
+                        // White center
+                        drawCircle(
+                            color = Color.White,
+                            radius = 6f,
+                            center = currentPoint
+                        )
                     }
 
                     // Draw faded letter background

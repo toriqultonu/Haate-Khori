@@ -25,14 +25,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.alphabettracer.data.AchievementStorage
 import com.example.alphabettracer.data.LetterStorage
 import com.example.alphabettracer.data.alphabetList
+import com.example.alphabettracer.model.Achievement
 import com.example.alphabettracer.model.ScreenState
+import com.example.alphabettracer.ui.components.AchievementPopup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +52,15 @@ fun AlphabetTracingApp() {
     }
     var totalStars by remember {
         mutableStateOf(LetterStorage.getTotalStars(context, alphabetList.size))
+    }
+
+    // Achievement tracking
+    var unlockedAchievements by remember {
+        mutableStateOf(AchievementStorage.getUnlockedAchievements(context))
+    }
+    var pendingAchievement by remember { mutableStateOf<Achievement?>(null) }
+    var colorsUsed by remember {
+        mutableStateOf(AchievementStorage.getColorsUsedCount(context))
     }
 
     Scaffold(
@@ -95,12 +108,21 @@ fun AlphabetTracingApp() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F5F5))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFFFF8E1),  // Warm cream at top
+                            Color(0xFFE3F2FD),  // Light blue
+                            Color(0xFFF3E5F5)   // Light purple at bottom
+                        )
+                    )
+                )
         ) {
             when (screenState) {
                 ScreenState.LETTER_GRID -> {
                     LetterGridScreen(
                         letterResults = letterResults,
+                        unlockedAchievements = unlockedAchievements,
                         onLetterSelected = { index ->
                             currentIndex = index
                             screenState = ScreenState.TRACING
@@ -111,13 +133,32 @@ fun AlphabetTracingApp() {
                     TracingScreen(
                         currentIndex = currentIndex,
                         userStreak = userStreak,
-                        onStreakUpdate = { newStreak -> userStreak = newStreak },
+                        onStreakUpdate = { newStreak ->
+                            userStreak = newStreak
+                            AchievementStorage.updateMaxStreak(context, newStreak)
+                        },
                         onResultSaved = { index, result ->
                             // Save to persistent storage
                             LetterStorage.saveLetterResult(context, index, result)
                             // Update local state
                             letterResults = LetterStorage.getAllResults(context, alphabetList.size)
                             totalStars = LetterStorage.getTotalStars(context, alphabetList.size)
+
+                            // Check for new achievements
+                            val newAchievements = AchievementStorage.checkAndUnlockAchievements(
+                                context = context,
+                                totalStars = totalStars,
+                                currentStreak = userStreak,
+                                colorsUsed = colorsUsed
+                            )
+                            if (newAchievements.isNotEmpty()) {
+                                unlockedAchievements = AchievementStorage.getUnlockedAchievements(context)
+                                pendingAchievement = newAchievements.first()
+                            }
+                        },
+                        onColorUsed = { colorIndex ->
+                            AchievementStorage.recordColorUsed(context, colorIndex)
+                            colorsUsed = AchievementStorage.getColorsUsedCount(context)
                         },
                         onNavigate = { newIndex ->
                             currentIndex = newIndex
@@ -126,5 +167,14 @@ fun AlphabetTracingApp() {
                 }
             }
         }
+    }
+
+    // Achievement popup
+    pendingAchievement?.let { achievement ->
+        AchievementPopup(
+            achievement = achievement,
+            isVisible = true,
+            onDismiss = { pendingAchievement = null }
+        )
     }
 }
