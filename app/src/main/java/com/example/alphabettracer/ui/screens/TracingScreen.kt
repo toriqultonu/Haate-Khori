@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.data.alphabetList
 import com.example.alphabettracer.model.MatchResult
+import com.example.alphabettracer.ui.components.ConfettiAnimation
 import com.example.alphabettracer.ui.components.TracingCanvas
 
 @Composable
@@ -53,25 +54,30 @@ fun TracingScreen(
     userStreak: Int,
     onStreakUpdate: (Int) -> Unit,
     onResultSaved: (Int, MatchResult) -> Unit,
+    onColorUsed: (Int) -> Unit,
     onNavigate: (Int) -> Unit
 ) {
     val context = LocalContext.current
     val currentLetter = alphabetList[currentIndex]
     var showCongratsDialog by remember { mutableStateOf(false) }
+    var showConfetti by remember { mutableStateOf(false) }
 
-    Column(
+    // Confetti overlay - shows on top of everything
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Letter info card
+        // Letter info card with fun styling
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -79,34 +85,78 @@ fun TracingScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Big letter display
+                // Big letter display with gradient-like effect
                 Surface(
-                    modifier = Modifier.size(70.dp),
+                    modifier = Modifier.size(75.dp),
                     shape = CircleShape,
-                    color = Color(0xFF6200EE).copy(alpha = 0.1f)
+                    color = Color(0xFF6200EE),
+                    shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = currentLetter.letter.toString(),
-                            fontSize = 40.sp,
+                            fontSize = 42.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6200EE)
+                            color = Color.White
                         )
                     }
                 }
                 Spacer(Modifier.width(16.dp))
                 Column {
-                    Text(
-                        text = currentLetter.word,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF333333)
-                    )
-                    Text(
-                        text = currentLetter.sentence,
-                        fontSize = 16.sp,
-                        color = Color.Gray
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = currentLetter.word,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = when (currentLetter.letter) {
+                                'A' -> "🍎"
+                                'B' -> "🏀"
+                                'C' -> "🐱"
+                                'D' -> "🐕"
+                                'E' -> "🐘"
+                                'F' -> "🐟"
+                                'G' -> "🦒"
+                                'H' -> "🏠"
+                                'I' -> "🍦"
+                                'J' -> "🍮"
+                                'K' -> "🪁"
+                                'L' -> "🦁"
+                                'M' -> "🐵"
+                                'N' -> "🪺"
+                                'O' -> "🍊"
+                                'P' -> "🐧"
+                                'Q' -> "👸"
+                                'R' -> "🌈"
+                                'S' -> "☀️"
+                                'T' -> "🐯"
+                                'U' -> "☂️"
+                                'V' -> "🎻"
+                                'W' -> "🐋"
+                                'X' -> "🎸"
+                                'Y' -> "🐃"
+                                'Z' -> "🦓"
+                                else -> ""
+                            },
+                            fontSize = 24.sp
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Surface(
+                        color = Color(0xFF6200EE).copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = currentLetter.sentence,
+                            fontSize = 14.sp,
+                            color = Color(0xFF6200EE),
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -143,6 +193,7 @@ fun TracingScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
+            onColorSelected = { colorIndex -> onColorUsed(colorIndex) },
             onCheckResult = { result ->
                 // Save result (only saves if better than existing)
                 if (result != MatchResult.NONE) {
@@ -153,6 +204,7 @@ fun TracingScreen(
                     MatchResult.EXCELLENT -> {
                         val newStreak = userStreak + 1
                         onStreakUpdate(newStreak)
+                        showConfetti = true  // Trigger confetti celebration!
                         if (newStreak > 0 && newStreak % 5 == 0) {
                             showCongratsDialog = true
                         }
@@ -214,6 +266,14 @@ fun TracingScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
             }
         }
+    }
+
+        // Confetti animation overlay
+        ConfettiAnimation(
+            isPlaying = showConfetti,
+            onAnimationEnd = { showConfetti = false },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 
     // Congrats dialog

@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -25,30 +28,54 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.data.alphabetList
+import com.example.alphabettracer.model.Achievement
 import com.example.alphabettracer.model.MatchResult
+import com.example.alphabettracer.ui.components.AchievementSection
 import com.example.alphabettracer.ui.components.LetterGridItem
 
 @Composable
 fun LetterGridScreen(
-    letterResults: Map<Int, com.example.alphabettracer.model.MatchResult>,
+    letterResults: Map<Int, MatchResult>,
+    unlockedAchievements: Set<Achievement>,
     onLetterSelected: (Int) -> Unit
 ) {
     // Count letters with at least GOOD result for progress
-    val completedCount = letterResults.count { it.value.ordinal >= com.example.alphabettracer.model.MatchResult.GOOD.ordinal }
-    val excellentCount = letterResults.count { it.value == com.example.alphabettracer.model.MatchResult.EXCELLENT }
+    val completedCount = letterResults.count { it.value.ordinal >= MatchResult.GOOD.ordinal }
+    val excellentCount = letterResults.count { it.value == MatchResult.EXCELLENT }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        // Fun decorative header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("🎨", fontSize = 24.sp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Let's Learn ABC!",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF6200EE)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("✏️", fontSize = 24.sp)
+        }
+
         // Progress indicator
         val progress = excellentCount.toFloat() / alphabetList.size
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+                .padding(bottom = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(16.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -56,17 +83,22 @@ fun LetterGridScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "Your Progress",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("⭐", fontSize = 14.sp)
+                        Text("📊", fontSize = 18.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Your Progress",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("⭐", fontSize = 16.sp)
                         Text(
                             " $excellentCount/${alphabetList.size}",
                             color = Color(0xFF4CAF50),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
                         )
                     }
                 }
@@ -75,20 +107,48 @@ fun LetterGridScreen(
                     progress = { progress },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(12.dp)
-                        .clip(RoundedCornerShape(6.dp)),
+                        .height(14.dp)
+                        .clip(RoundedCornerShape(7.dp)),
                     color = Color(0xFF4CAF50),
-                    trackColor = Color(0xFFE0E0E0)
+                    trackColor = Color(0xFFE8F5E9)
+                )
+                // Encouraging message based on progress
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = when {
+                        excellentCount == 0 -> "🌟 Start your adventure!"
+                        excellentCount < 5 -> "🚀 Great start! Keep going!"
+                        excellentCount < 13 -> "🔥 You're on fire!"
+                        excellentCount < 20 -> "💪 Almost there!"
+                        excellentCount < 26 -> "🏆 So close to mastery!"
+                        else -> "🎉 You're an Alphabet Master!"
+                    },
+                    fontSize = 14.sp,
+                    color = Color(0xFF6200EE),
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
 
-        Text(
-            "Choose a letter to practice:",
-            fontSize = 16.sp,
-            color = Color.Gray,
-            modifier = Modifier.padding(bottom = 12.dp)
+        // Achievement section
+        AchievementSection(
+            unlockedAchievements = unlockedAchievements,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        Row(
+            modifier = Modifier.padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("👆", fontSize = 18.sp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Tap a letter to practice!",
+                fontSize = 16.sp,
+                color = Color(0xFF6200EE),
+                fontWeight = FontWeight.Medium
+            )
+        }
 
         // Letter grid
         LazyVerticalGrid(
