@@ -1358,24 +1358,24 @@ fun getLetterStrokes(letter: Char, size: Float, canvasWidth: Float = size, canva
             listOf(diag1, diag2)
         }
         'Y' -> {
-            // Stroke 1: Left arm
+            // Stroke 1: V-shape (left arm down to center, then right arm up)
             val leftArm = interpolate(
                 Offset(centerX - 60 * scale, centerY - 90 * scale),
                 Offset(centerX, centerY),
                 18
             )
-            // Stroke 2: Right arm + stem (connected)
             val rightArm = interpolate(
-                Offset(centerX + 60 * scale, centerY - 90 * scale),
                 Offset(centerX, centerY),
+                Offset(centerX + 60 * scale, centerY - 90 * scale),
                 18
             )
+            // Stroke 2: Stem going down from center
             val stem = interpolate(
                 Offset(centerX, centerY),
                 Offset(centerX, centerY + 90 * scale),
                 15
             )
-            listOf(leftArm, rightArm + stem)
+            listOf(leftArm + rightArm, stem)
         }
         // Letters with single continuous stroke - wrap in a list
         else -> {
