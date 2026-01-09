@@ -91,15 +91,9 @@ object AchievementStorage {
         }
 
         // Hot Streak - 5 excellent in a row
-        if (currentStreak >= 5 && !isAchievementUnlocked(context, Achievement.HOT_STREAK)) {
+        if (currentStreak >= 15 && !isAchievementUnlocked(context, Achievement.HOT_STREAK)) {
             unlockAchievement(context, Achievement.HOT_STREAK)
             newlyUnlocked.add(Achievement.HOT_STREAK)
-        }
-
-        // Rainbow Artist - used all 6 colors
-        if (colorsUsed >= 6 && !isAchievementUnlocked(context, Achievement.RAINBOW_ARTIST)) {
-            unlockAchievement(context, Achievement.RAINBOW_ARTIST)
-            newlyUnlocked.add(Achievement.RAINBOW_ARTIST)
         }
 
         return newlyUnlocked

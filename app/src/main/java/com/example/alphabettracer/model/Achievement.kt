@@ -42,13 +42,6 @@ enum class Achievement(
         icon = "🔥",
         requirement = "Get 5 EXCELLENT traces in a row"
     ),
-    RAINBOW_ARTIST(
-        id = "rainbow_artist",
-        title = "Rainbow Artist",
-        description = "Colors are fun!",
-        icon = "🌈",
-        requirement = "Use all 6 colors"
-    ),
     QUICK_LEARNER(
         id = "quick_learner",
         title = "Quick Learner",
