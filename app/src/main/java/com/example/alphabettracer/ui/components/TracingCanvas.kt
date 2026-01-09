@@ -944,44 +944,43 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
             stem + bump + leg
         }
         'S' -> {
-            // Note: scale is already calculated as size / 300f in the function
-            // centerX and centerY are already defined
-
-            // Adjusted parameters for better alignment
-            val topRadius = 45 * scale
-            val bottomRadius = 45 * scale
-
-            // Top curve center - moved slightly right and up
+            // 1. Setup dimensions
+            val radius = 46 * scale
             val topCenterY = centerY - 45 * scale
-            val topCenterX = centerX + 5 * scale  // Slight right shift
-
-            // Bottom curve center - moved slightly left and down
             val bottomCenterY = centerY + 45 * scale
-            val bottomCenterX = centerX - 5 * scale  // Slight left shift
 
-            // Top curve: starts from top-left, curves to right
-            // Angle adjustments: start from 170° (top-left) to -20° (middle-right)
+            // 2. Top Curve: Starts at the top-right and sweeps around to the middle-left
+            // Angles: 340° (top right) around to 160° (middle left)
             val topCurve = arcPoints(
-                cx = topCenterX,
+                cx = centerX,
                 cy = topCenterY,
-                radius = topRadius,
-                startAngle = 20f,
-                endAngle = -170f,
-                steps = 28
-            )
-
-            // Bottom curve: continues from middle, curves to bottom-right
-            // Angle adjustments: start from 160° (middle-left) to -10° (bottom-right)
-            val bottomCurve = arcPoints(
-                cx = bottomCenterX,
-                cy = bottomCenterY,
-                radius = bottomRadius,
-                startAngle = -10f,
+                radius = radius,
+                startAngle = 340f,
                 endAngle = 160f,
-                steps = 28
+                steps = 30
             )
 
-            topCurve + bottomCurve
+            // 3. Middle Connection: Smoothly connects the top-left to the bottom-right
+            // We get the last point of the top curve and the first point of the bottom curve
+            val transitionStart = topCurve.last()
+            val transitionEnd = Offset(
+                centerX + radius * cos(Math.toRadians(340.0).toFloat()),
+                bottomCenterY + radius * sin(Math.toRadians(340.0).toFloat())
+            )
+            val middleConnection = interpolate(transitionStart, transitionEnd, 15)
+
+            // 4. Bottom Curve: Starts at the middle-right and sweeps around to the bottom-left
+            // Angles: 340° (middle right) around to 160° (bottom left)
+            val bottomCurve = arcPoints(
+                cx = centerX,
+                cy = bottomCenterY,
+                radius = radius,
+                startAngle = 340f,
+                endAngle = 160f,
+                steps = 30
+            )
+
+            topCurve + middleConnection + bottomCurve
         }
 
         'T' -> {
