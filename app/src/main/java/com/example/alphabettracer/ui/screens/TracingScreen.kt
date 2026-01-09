@@ -47,6 +47,7 @@ import com.example.alphabettracer.data.alphabetList
 import com.example.alphabettracer.model.MatchResult
 import com.example.alphabettracer.ui.components.ConfettiAnimation
 import com.example.alphabettracer.ui.components.TracingCanvas
+import com.example.alphabettracer.util.SoundManager
 
 @Composable
 fun TracingScreen(
@@ -205,17 +206,22 @@ fun TracingScreen(
                         val newStreak = userStreak + 1
                         onStreakUpdate(newStreak)
                         showConfetti = true  // Trigger confetti celebration!
+                        SoundManager.playExcellent(context)
+                        SoundManager.playConfetti(context)
                         if (newStreak > 0 && newStreak % 5 == 0) {
                             showCongratsDialog = true
+                            SoundManager.playStreak(context)
                         }
                         Toast.makeText(context, "Excellent! ⭐", Toast.LENGTH_SHORT).show()
                     }
                     MatchResult.GOOD -> {
                         onStreakUpdate(0) // Reset streak on non-excellent
+                        SoundManager.playGood(context)
                         Toast.makeText(context, "Good job! Keep practicing!", Toast.LENGTH_SHORT).show()
                     }
                     MatchResult.POOR -> {
                         onStreakUpdate(0) // Reset streak
+                        SoundManager.playTryAgain(context)
                         Toast.makeText(context, "Keep trying! Trace more of the letter.", Toast.LENGTH_SHORT).show()
                     }
                     MatchResult.NONE -> {
@@ -235,6 +241,7 @@ fun TracingScreen(
             Button(
                 onClick = {
                     if (currentIndex > 0) {
+                        SoundManager.playNextLetter(context)
                         onNavigate(currentIndex - 1)
                     }
                 },
@@ -252,6 +259,7 @@ fun TracingScreen(
             Button(
                 onClick = {
                     if (currentIndex < alphabetList.size - 1) {
+                        SoundManager.playNextLetter(context)
                         onNavigate(currentIndex + 1)
                     }
                 },

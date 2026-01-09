@@ -8,6 +8,7 @@ object LetterStorage {
     private const val KEY_PREFIX = "letter_result_"
     private const val KEY_SELECTED_COLOR = "selected_color_index"
     private const val KEY_STROKE_WIDTH = "stroke_width"
+    private const val KEY_SOUND_ENABLED = "sound_enabled"
 
     fun saveLetterResult(context: Context, letterIndex: Int, result: MatchResult) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -57,5 +58,16 @@ object LetterStorage {
     fun getStrokeWidth(context: Context): Float {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getFloat(KEY_STROKE_WIDTH, 18f) // Default stroke width
+    }
+
+    // Sound preference persistence
+    fun setSoundEnabled(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply()
+    }
+
+    fun getSoundEnabled(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_SOUND_ENABLED, true) // Sound enabled by default
     }
 }
