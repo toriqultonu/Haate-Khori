@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -15,6 +16,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -37,7 +40,8 @@ import com.example.alphabettracer.ui.components.LetterGridItem
 fun LetterGridScreen(
     letterResults: Map<Int, MatchResult>,
     unlockedAchievements: Set<Achievement>,
-    onLetterSelected: (Int) -> Unit
+    onLetterSelected: (Int) -> Unit,
+    onWordSearchClicked: () -> Unit = {}
 ) {
     // Count letters with at least GOOD result for progress
     val completedCount = letterResults.count { it.value.ordinal >= MatchResult.GOOD.ordinal }
@@ -135,6 +139,29 @@ fun LetterGridScreen(
             unlockedAchievements = unlockedAchievements,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        // Word Search Button
+        Button(
+            onClick = onWordSearchClicked,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2196F3)
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text("🔍", fontSize = 24.sp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Play Word Search",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("🎯", fontSize = 24.sp)
+        }
 
         Row(
             modifier = Modifier.padding(bottom = 12.dp),
