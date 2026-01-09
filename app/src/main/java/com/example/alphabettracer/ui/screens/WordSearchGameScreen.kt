@@ -34,12 +34,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,11 +87,74 @@ fun WordSearchGameScreen(
     var gameCompleted by remember { mutableStateOf(false) }
     var colorIndex by remember { mutableIntStateOf(0) }
 
-    // Initialize grid
+    // Initialize grid - load saved game or create new
     LaunchedEffect(topic) {
-        val result = generateWordSearchGrid(topic.words, gridSize)
-        grid = result.first
-        placedWords = result.second
+        val savedState = WordSearchStorage.loadGameState(context, topic.id)
+        if (savedState != null) {
+            // Restore saved game
+            grid = savedState.grid
+            placedWords = savedState.placedWords
+            elapsedSeconds = savedState.elapsedSeconds
+            colorIndex = savedState.colorIndex
+
+            // Restore found words with their colors
+            foundWords.clear()
+            savedState.foundWordNames.forEachIndexed { index, wordName ->
+                val placed = savedState.placedWords.find { it.word == wordName }
+                if (placed != null) {
+                    val direction = placed.direction
+                    val (rowDelta, colDelta) = when (direction) {
+                        WordDirection.HORIZONTAL -> Pair(0, 1)
+                        WordDirection.VERTICAL -> Pair(1, 0)
+                        WordDirection.DIAGONAL_DOWN -> Pair(1, 1)
+                        WordDirection.DIAGONAL_UP -> Pair(-1, 1)
+                    }
+                    val endRow = placed.startRow + (placed.word.length - 1) * rowDelta
+                    val endCol = placed.startCol + (placed.word.length - 1) * colDelta
+
+                    foundWords.add(
+                        FoundWord(
+                            word = wordName,
+                            startRow = placed.startRow,
+                            startCol = placed.startCol,
+                            endRow = endRow,
+                            endCol = endCol,
+                            color = wordHighlightColors[index % wordHighlightColors.size]
+                        )
+                    )
+                }
+            }
+        } else {
+            // Create new game
+            val result = generateWordSearchGrid(topic.words, gridSize)
+            grid = result.first
+            placedWords = result.second
+        }
+    }
+
+    // Save game state when leaving (if not completed)
+    val currentGrid by rememberUpdatedState(grid)
+    val currentPlacedWords by rememberUpdatedState(placedWords)
+    val currentFoundWords by rememberUpdatedState(foundWords.toList())
+    val currentElapsedSeconds by rememberUpdatedState(elapsedSeconds)
+    val currentColorIndex by rememberUpdatedState(colorIndex)
+    val currentGameCompleted by rememberUpdatedState(gameCompleted)
+
+    DisposableEffect(topic.id) {
+        onDispose {
+            // Save game state if not completed and has progress
+            if (!currentGameCompleted && currentPlacedWords.isNotEmpty()) {
+                WordSearchStorage.saveGameState(
+                    context = context,
+                    topicId = topic.id,
+                    grid = currentGrid,
+                    placedWords = currentPlacedWords,
+                    foundWordNames = currentFoundWords.map { it.word },
+                    elapsedSeconds = currentElapsedSeconds,
+                    colorIndex = currentColorIndex
+                )
+            }
+        }
     }
 
     // Timer
@@ -105,6 +170,8 @@ fun WordSearchGameScreen(
         if (placedWords.isNotEmpty() && foundWords.size == placedWords.size && !gameCompleted) {
             gameCompleted = true
             WordSearchStorage.saveTopicCompleted(context, topic.id, elapsedSeconds.toLong())
+            // Clear saved game since it's completed
+            WordSearchStorage.clearSavedGame(context, topic.id)
         }
     }
 
@@ -260,6 +327,10 @@ fun WordSearchGameScreen(
             // New Game Button
             Button(
                 onClick = {
+                    // Clear any saved game state
+                    WordSearchStorage.clearSavedGame(context, topic.id)
+
+                    // Generate fresh game
                     val result = generateWordSearchGrid(topic.words, gridSize)
                     grid = result.first
                     placedWords = result.second
