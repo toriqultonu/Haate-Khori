@@ -944,13 +944,12 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
             stem + bump + leg
         }
         'S' -> {
-            // 1. Setup dimensions
-            val radius = 46 * scale
+            val radius = 48 * scale
             val topCenterY = centerY - 45 * scale
             val bottomCenterY = centerY + 45 * scale
 
-            // 2. Top Curve: Starts at the top-right and sweeps around to the middle-left
-            // Angles: 340° (top right) around to 160° (middle left)
+            // 1. Top Curve: Sweeps from top-right to middle-left
+            // Start at 340° (top right) and sweep to 160° (middle left)
             val topCurve = arcPoints(
                 cx = centerX,
                 cy = topCenterY,
@@ -960,23 +959,22 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
                 steps = 30
             )
 
-            // 3. Middle Connection: Smoothly connects the top-left to the bottom-right
-            // We get the last point of the top curve and the first point of the bottom curve
-            val transitionStart = topCurve.last()
+            // 2. Middle Connection: Crosses from the middle-left to the middle-right
+            // This follows the diagonal spine of the S
             val transitionEnd = Offset(
-                centerX + radius * cos(Math.toRadians(340.0).toFloat()),
-                bottomCenterY + radius * sin(Math.toRadians(340.0).toFloat())
+                centerX + radius * cos(Math.toRadians(20.0).toFloat()),
+                bottomCenterY + radius * sin(Math.toRadians(200.0).toFloat())
             )
-            val middleConnection = interpolate(transitionStart, transitionEnd, 15)
+            val middleConnection = interpolate(topCurve.last(), transitionEnd, 15)
 
-            // 4. Bottom Curve: Starts at the middle-right and sweeps around to the bottom-left
-            // Angles: 340° (middle right) around to 160° (bottom left)
+            // 3. Bottom Curve: Sweeps from middle-right down to the bottom-left
+            // Start at 20° (middle right) and sweep to 200° (bottom left)
             val bottomCurve = arcPoints(
                 cx = centerX,
                 cy = bottomCenterY,
                 radius = radius,
-                startAngle = 340f,
-                endAngle = 160f,
+                startAngle = 0f,
+                endAngle = 200f,
                 steps = 30
             )
 
