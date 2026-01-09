@@ -522,8 +522,11 @@ fun TracingCanvas(
                     canvasWidth = size.width
                     canvasHeight = size.height
 
-                    // Draw guide path (dots showing where to trace)
-                    val letterPath = getLetterPath(letter, canvasSize, canvasWidth, canvasHeight)
+                    // Get letter strokes for multi-stroke animation
+                    val letterStrokes = getLetterStrokes(letter, canvasSize, canvasWidth, canvasHeight)
+                    // Flatten for guide dots and matching
+                    val letterPath = letterStrokes.flatten()
+
                     if (showGuide) {
                         letterPath.forEach { point ->
                             // Draw guide dots
@@ -535,18 +538,53 @@ fun TracingCanvas(
                         }
                     }
 
-                    // Draw animated demo
-                    if (isPlayingDemo && letterPath.isNotEmpty()) {
-                        val currentPointIndex = (demoProgress * (letterPath.size - 1)).toInt()
-                        val trailLength = 30 // Number of trailing points
+                    // Draw animated demo with multiple strokes
+                    if (isPlayingDemo && letterStrokes.isNotEmpty()) {
+                        val totalPoints = letterStrokes.sumOf { it.size }
+                        val currentGlobalIndex = (demoProgress * (totalPoints - 1)).toInt()
 
-                        // Draw the trail (fading line behind the dot)
-                        val trailStart = maxOf(0, currentPointIndex - trailLength)
-                        if (currentPointIndex > trailStart) {
+                        // Find which stroke we're on and the position within it
+                        var pointsBeforeCurrentStroke = 0
+                        var currentStrokeIndex = 0
+                        for (i in letterStrokes.indices) {
+                            if (pointsBeforeCurrentStroke + letterStrokes[i].size > currentGlobalIndex) {
+                                currentStrokeIndex = i
+                                break
+                            }
+                            pointsBeforeCurrentStroke += letterStrokes[i].size
+                        }
+
+                        val currentStroke = letterStrokes[currentStrokeIndex]
+                        val indexInCurrentStroke = currentGlobalIndex - pointsBeforeCurrentStroke
+
+                        // Draw completed strokes (fully traced)
+                        for (i in 0 until currentStrokeIndex) {
+                            val stroke = letterStrokes[i]
+                            if (stroke.size > 1) {
+                                val strokePath = Path().apply {
+                                    stroke.forEachIndexed { idx, point ->
+                                        if (idx == 0) moveTo(point.x, point.y)
+                                        else lineTo(point.x, point.y)
+                                    }
+                                }
+                                drawPath(
+                                    path = strokePath,
+                                    color = Color(0xFFFF5722),
+                                    style = Stroke(
+                                        width = 12f,
+                                        cap = StrokeCap.Round,
+                                        join = StrokeJoin.Round
+                                    )
+                                )
+                            }
+                        }
+
+                        // Draw current stroke - grows from start to current position
+                        if (indexInCurrentStroke > 0 && currentStroke.isNotEmpty()) {
                             val trailPath = Path().apply {
-                                for (i in trailStart..currentPointIndex) {
-                                    val point = letterPath[i]
-                                    if (i == trailStart) moveTo(point.x, point.y)
+                                for (i in 0..indexInCurrentStroke.coerceAtMost(currentStroke.size - 1)) {
+                                    val point = currentStroke[i]
+                                    if (i == 0) moveTo(point.x, point.y)
                                     else lineTo(point.x, point.y)
                                 }
                             }
@@ -562,25 +600,27 @@ fun TracingCanvas(
                         }
 
                         // Draw the animated dot (current position)
-                        val currentPoint = letterPath[currentPointIndex]
-                        // Outer glow
-                        drawCircle(
-                            color = Color(0xFFFF5722).copy(alpha = 0.3f),
-                            radius = 24f,
-                            center = currentPoint
-                        )
-                        // Inner dot
-                        drawCircle(
-                            color = Color(0xFFFF5722),
-                            radius = 14f,
-                            center = currentPoint
-                        )
-                        // White center
-                        drawCircle(
-                            color = Color.White,
-                            radius = 6f,
-                            center = currentPoint
-                        )
+                        if (currentStroke.isNotEmpty()) {
+                            val currentPoint = currentStroke[indexInCurrentStroke.coerceAtMost(currentStroke.size - 1)]
+                            // Outer glow
+                            drawCircle(
+                                color = Color(0xFFFF5722).copy(alpha = 0.3f),
+                                radius = 24f,
+                                center = currentPoint
+                            )
+                            // Inner dot
+                            drawCircle(
+                                color = Color(0xFFFF5722),
+                                radius = 14f,
+                                center = currentPoint
+                            )
+                            // White center
+                            drawCircle(
+                                color = Color.White,
+                                radius = 6f,
+                                center = currentPoint
+                            )
+                        }
                     }
 
                     // Draw faded letter background
@@ -710,11 +750,12 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
                 cx = centerX,
                 cy = centerY,
                 radius = radius,
-                startAngle = 45f,
-                endAngle = 315f,
+                startAngle = 315f,
+                endAngle = 45f,
                 steps = 40
             )
-        }        'D' -> {
+        }
+        'D' -> {
             val stem = interpolate(
                 Offset(centerX - 50 * scale, centerY - 90 * scale),
                 Offset(centerX - 50 * scale, centerY + 90 * scale),
@@ -1064,8 +1105,8 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
                 18
             )
             val rightArm = interpolate(
-                Offset(centerX + 60 * scale, centerY - 90 * scale),
                 Offset(centerX, centerY),
+                Offset(centerX + 60 * scale, centerY - 90 * scale),
                 18
             )
             val stem = interpolate(
@@ -1094,6 +1135,251 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
             top + diagonal + bottom
         }
         else -> emptyList()
+    }
+}
+
+/**
+ * Returns letter paths as multiple strokes for proper animation.
+ * Each inner list represents a separate stroke that should be animated independently.
+ */
+fun getLetterStrokes(letter: Char, size: Float, canvasWidth: Float = size, canvasHeight: Float = size): List<List<Offset>> {
+    val centerX = canvasWidth / 2
+    val centerY = canvasHeight / 2
+    val scale = size / 300f
+
+    fun interpolate(start: Offset, end: Offset, steps: Int): List<Offset> {
+        return (0..steps).map { i ->
+            val t = i.toFloat() / steps
+            Offset(
+                start.x + (end.x - start.x) * t,
+                start.y + (end.y - start.y) * t
+            )
+        }
+    }
+
+    fun arcPoints(cx: Float, cy: Float, radius: Float, startAngle: Float, endAngle: Float, steps: Int): List<Offset> {
+        return (0..steps).map { i ->
+            val angle = startAngle + (endAngle - startAngle) * i / steps
+            Offset(
+                cx + radius * cos(Math.toRadians(angle.toDouble()).toFloat()),
+                cy + radius * sin(Math.toRadians(angle.toDouble()).toFloat())
+            )
+        }
+    }
+
+    return when (letter.uppercaseChar()) {
+        'A' -> {
+            // Stroke 1: V-shape (left leg + right leg)
+            val leftLeg = interpolate(
+                Offset(centerX - 70 * scale, centerY + 90 * scale),
+                Offset(centerX, centerY - 90 * scale),
+                20
+            )
+            val rightLeg = interpolate(
+                Offset(centerX, centerY - 90 * scale),
+                Offset(centerX + 70 * scale, centerY + 90 * scale),
+                20
+            )
+            // Stroke 2: Crossbar
+            val crossBar = interpolate(
+                Offset(centerX - 40 * scale, centerY + 10 * scale),
+                Offset(centerX + 40 * scale, centerY + 10 * scale),
+                15
+            )
+            listOf(leftLeg + rightLeg, crossBar)
+        }
+        'E' -> {
+            // Stroke 1: Stem
+            val stem = interpolate(
+                Offset(centerX - 50 * scale, centerY - 90 * scale),
+                Offset(centerX - 50 * scale, centerY + 90 * scale),
+                25
+            )
+            // Stroke 2: Top bar
+            val top = interpolate(
+                Offset(centerX - 50 * scale, centerY - 90 * scale),
+                Offset(centerX + 50 * scale, centerY - 90 * scale),
+                15
+            )
+            // Stroke 3: Middle bar
+            val middle = interpolate(
+                Offset(centerX - 50 * scale, centerY),
+                Offset(centerX + 40 * scale, centerY),
+                12
+            )
+            // Stroke 4: Bottom bar
+            val bottom = interpolate(
+                Offset(centerX - 50 * scale, centerY + 90 * scale),
+                Offset(centerX + 50 * scale, centerY + 90 * scale),
+                15
+            )
+            listOf(stem, top, middle, bottom)
+        }
+        'F' -> {
+            // Stroke 1: Stem
+            val stem = interpolate(
+                Offset(centerX - 50 * scale, centerY - 90 * scale),
+                Offset(centerX - 50 * scale, centerY + 90 * scale),
+                25
+            )
+            // Stroke 2: Top bar
+            val top = interpolate(
+                Offset(centerX - 50 * scale, centerY - 90 * scale),
+                Offset(centerX + 50 * scale, centerY - 90 * scale),
+                15
+            )
+            // Stroke 3: Middle bar
+            val middle = interpolate(
+                Offset(centerX - 50 * scale, centerY - 10 * scale),
+                Offset(centerX + 40 * scale, centerY - 10 * scale),
+                12
+            )
+            listOf(stem, top, middle)
+        }
+        'H' -> {
+            // Stroke 1: Left stem
+            val leftStem = interpolate(
+                Offset(centerX - 50 * scale, centerY - 90 * scale),
+                Offset(centerX - 50 * scale, centerY + 90 * scale),
+                25
+            )
+            // Stroke 2: Right stem
+            val rightStem = interpolate(
+                Offset(centerX + 50 * scale, centerY - 90 * scale),
+                Offset(centerX + 50 * scale, centerY + 90 * scale),
+                25
+            )
+            // Stroke 3: Crossbar
+            val crossBar = interpolate(
+                Offset(centerX - 50 * scale, centerY),
+                Offset(centerX + 50 * scale, centerY),
+                15
+            )
+            listOf(leftStem, rightStem, crossBar)
+        }
+        'I' -> {
+            // Stroke 1: Stem
+            val stem = interpolate(
+                Offset(centerX, centerY - 90 * scale),
+                Offset(centerX, centerY + 90 * scale),
+                25
+            )
+            // Stroke 2: Top bar
+            val top = interpolate(
+                Offset(centerX - 40 * scale, centerY - 90 * scale),
+                Offset(centerX + 40 * scale, centerY - 90 * scale),
+                12
+            )
+            // Stroke 3: Bottom bar
+            val bottom = interpolate(
+                Offset(centerX - 40 * scale, centerY + 90 * scale),
+                Offset(centerX + 40 * scale, centerY + 90 * scale),
+                12
+            )
+            listOf(stem, top, bottom)
+        }
+        'J' -> {
+            // Stroke 1: Main body (stem + hook)
+            val stem = interpolate(
+                Offset(centerX + 30 * scale, centerY - 90 * scale),
+                Offset(centerX + 30 * scale, centerY + 40 * scale),
+                20
+            )
+            val hook = arcPoints(centerX - 20 * scale, centerY + 40 * scale, 50 * scale, 0f, 180f, 15)
+            // Stroke 2: Top bar
+            val top = interpolate(
+                Offset(centerX - 20 * scale, centerY - 90 * scale),
+                Offset(centerX + 60 * scale, centerY - 90 * scale),
+                12
+            )
+            listOf(stem + hook, top)
+        }
+        'K' -> {
+            // Stroke 1: Stem
+            val stem = interpolate(
+                Offset(centerX - 50 * scale, centerY - 90 * scale),
+                Offset(centerX - 50 * scale, centerY + 90 * scale),
+                25
+            )
+            // Stroke 2: Upper diagonal + lower diagonal (connected)
+            val upperDiag = interpolate(
+                Offset(centerX + 50 * scale, centerY - 90 * scale),
+                Offset(centerX - 50 * scale, centerY),
+                20
+            )
+            val lowerDiag = interpolate(
+                Offset(centerX - 50 * scale, centerY),
+                Offset(centerX + 50 * scale, centerY + 90 * scale),
+                20
+            )
+            listOf(stem, upperDiag + lowerDiag)
+        }
+        'Q' -> {
+            // Stroke 1: Circle
+            val circle = arcPoints(centerX, centerY - 10 * scale, 75 * scale, 0f, 360f, 40)
+            // Stroke 2: Tail
+            val tail = interpolate(
+                Offset(centerX + 20 * scale, centerY + 40 * scale),
+                Offset(centerX + 70 * scale, centerY + 90 * scale),
+                12
+            )
+            listOf(circle, tail)
+        }
+        'T' -> {
+            // Stroke 1: Top bar (usually drawn first)
+            val top = interpolate(
+                Offset(centerX - 60 * scale, centerY - 90 * scale),
+                Offset(centerX + 60 * scale, centerY - 90 * scale),
+                18
+            )
+            // Stroke 2: Stem
+            val stem = interpolate(
+                Offset(centerX, centerY - 90 * scale),
+                Offset(centerX, centerY + 90 * scale),
+                25
+            )
+            listOf(top, stem)
+        }
+        'X' -> {
+            // Stroke 1: First diagonal
+            val diag1 = interpolate(
+                Offset(centerX - 60 * scale, centerY - 90 * scale),
+                Offset(centerX + 60 * scale, centerY + 90 * scale),
+                30
+            )
+            // Stroke 2: Second diagonal
+            val diag2 = interpolate(
+                Offset(centerX + 60 * scale, centerY - 90 * scale),
+                Offset(centerX - 60 * scale, centerY + 90 * scale),
+                30
+            )
+            listOf(diag1, diag2)
+        }
+        'Y' -> {
+            // Stroke 1: V-shape (left arm down to center, then right arm up)
+            val leftArm = interpolate(
+                Offset(centerX - 60 * scale, centerY - 90 * scale),
+                Offset(centerX, centerY),
+                18
+            )
+            val rightArm = interpolate(
+                Offset(centerX, centerY),
+                Offset(centerX + 60 * scale, centerY - 90 * scale),
+                18
+            )
+            // Stroke 2: Stem going down from center
+            val stem = interpolate(
+                Offset(centerX, centerY),
+                Offset(centerX, centerY + 90 * scale),
+                15
+            )
+            listOf(leftArm + rightArm, stem)
+        }
+        // Letters with single continuous stroke - wrap in a list
+        else -> {
+            val singlePath = getLetterPath(letter, size, canvasWidth, canvasHeight)
+            if (singlePath.isNotEmpty()) listOf(singlePath) else emptyList()
+        }
     }
 }
 
