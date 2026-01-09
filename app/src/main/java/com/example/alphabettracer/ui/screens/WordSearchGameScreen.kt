@@ -5,7 +5,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,7 +57,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -384,50 +384,59 @@ private fun WordSearchGrid(
     onSelectionChange: (List<CellSelection>) -> Unit,
     onSelectionComplete: (List<CellSelection>) -> Unit
 ) {
-    val density = LocalDensity.current
-    var cellSize by remember { mutableStateOf(0f) }
-    var gridOffset by remember { mutableStateOf(Offset.Zero) }
+    // Track selection internally during drag
+    var internalSelection by remember { mutableStateOf(listOf<CellSelection>()) }
 
     Canvas(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val col = ((offset.x - gridOffset.x) / cellSize).toInt().coerceIn(0, gridSize - 1)
-                        val row = ((offset.y - gridOffset.y) / cellSize).toInt().coerceIn(0, gridSize - 1)
-                        onSelectionChange(listOf(CellSelection(row, col)))
-                    },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        val col = ((change.position.x - gridOffset.x) / cellSize).toInt().coerceIn(0, gridSize - 1)
-                        val row = ((change.position.y - gridOffset.y) / cellSize).toInt().coerceIn(0, gridSize - 1)
+            .pointerInput(gridSize) {
+                val cellSizeInput = size.width.toFloat() / gridSize
 
-                        val newSelection = currentSelection.toMutableList()
-                        val newCell = CellSelection(row, col)
+                awaitEachGesture {
+                    // Wait for first touch down and consume it immediately
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
 
-                        // Only add if it's in a valid line (horizontal, vertical, or diagonal)
-                        if (newSelection.isNotEmpty()) {
-                            val first = newSelection.first()
-                            val isValidLine = isValidSelection(first, newCell)
+                    // Calculate starting cell
+                    val startCol = (down.position.x / cellSizeInput).toInt().coerceIn(0, gridSize - 1)
+                    val startRow = (down.position.y / cellSizeInput).toInt().coerceIn(0, gridSize - 1)
+                    val startCell = CellSelection(startRow, startCol)
 
-                            if (isValidLine) {
-                                // Build selection from first to current
-                                val cells = getCellsBetween(first, newCell)
-                                onSelectionChange(cells)
+                    // Set initial selection
+                    internalSelection = listOf(startCell)
+                    onSelectionChange(internalSelection)
+
+                    // Track drag - consume all pointer events to prevent scroll from intercepting
+                    var lastPosition = down.position
+                    do {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { change ->
+                            if (change.pressed) {
+                                change.consume()
+                                lastPosition = change.position
+
+                                val col = (lastPosition.x / cellSizeInput).toInt().coerceIn(0, gridSize - 1)
+                                val row = (lastPosition.y / cellSizeInput).toInt().coerceIn(0, gridSize - 1)
+                                val currentCell = CellSelection(row, col)
+
+                                // Only update if it's a valid line (horizontal, vertical, or diagonal)
+                                if (isValidSelection(startCell, currentCell)) {
+                                    val cells = getCellsBetween(startCell, currentCell)
+                                    internalSelection = cells
+                                    onSelectionChange(cells)
+                                }
                             }
-                        } else {
-                            onSelectionChange(listOf(newCell))
                         }
-                    },
-                    onDragEnd = {
-                        onSelectionComplete(currentSelection)
-                    }
-                )
+                    } while (event.changes.any { it.pressed })
+
+                    // Drag ended - complete selection
+                    onSelectionComplete(internalSelection)
+                    internalSelection = emptyList()
+                }
             }
     ) {
-        cellSize = size.width / gridSize
-        gridOffset = Offset.Zero
+        val cellSize = size.width / gridSize
 
         // Draw found word highlights
         foundWords.forEach { found ->
@@ -445,10 +454,11 @@ private fun WordSearchGrid(
             )
         }
 
-        // Draw current selection
-        if (currentSelection.isNotEmpty()) {
-            val first = currentSelection.first()
-            val last = currentSelection.last()
+        // Draw current selection (use internal selection for active drag, otherwise use passed selection)
+        val selectionToDraw = if (internalSelection.isNotEmpty()) internalSelection else currentSelection
+        if (selectionToDraw.isNotEmpty()) {
+            val first = selectionToDraw.first()
+            val last = selectionToDraw.last()
 
             val startX = first.col * cellSize + cellSize / 2
             val startY = first.row * cellSize + cellSize / 2
@@ -482,13 +492,14 @@ private fun WordSearchGrid(
         }
 
         // Draw letters
+        val activeSelection = if (internalSelection.isNotEmpty()) internalSelection else currentSelection
         for (row in 0 until gridSize) {
             for (col in 0 until gridSize) {
                 val letter = grid[row][col]
                 val x = col * cellSize + cellSize / 2
                 val y = row * cellSize + cellSize / 2
 
-                val isSelected = currentSelection.any { it.row == row && it.col == col }
+                val isSelected = activeSelection.any { it.row == row && it.col == col }
                 val isInFoundWord = foundWords.any { found ->
                     val cells = getCellsBetween(
                         CellSelection(found.startRow, found.startCol),
