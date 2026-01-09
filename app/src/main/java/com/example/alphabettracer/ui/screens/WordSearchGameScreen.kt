@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -33,7 +32,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,10 +48,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -86,7 +81,6 @@ fun WordSearchGameScreen(
     var placedWords by remember { mutableStateOf(listOf<PlacedWord>()) }
     val foundWords = remember { mutableStateListOf<FoundWord>() }
     var currentSelection by remember { mutableStateOf(listOf<CellSelection>()) }
-    var isDragging by remember { mutableStateOf(false) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var gameCompleted by remember { mutableStateOf(false) }
     var colorIndex by remember { mutableIntStateOf(0) }
@@ -107,8 +101,8 @@ fun WordSearchGameScreen(
     }
 
     // Check game completion
-    LaunchedEffect(foundWords.size) {
-        if (foundWords.size == topic.words.size && !gameCompleted) {
+    LaunchedEffect(foundWords.size, placedWords.size) {
+        if (placedWords.isNotEmpty() && foundWords.size == placedWords.size && !gameCompleted) {
             gameCompleted = true
             WordSearchStorage.saveTopicCompleted(context, topic.id, elapsedSeconds.toLong())
         }
@@ -139,7 +133,7 @@ fun WordSearchGameScreen(
                     color = topic.color
                 )
                 Text(
-                    text = "Find all ${topic.words.size} words!",
+                    text = "Find all ${placedWords.size} words!",
                     fontSize = 14.sp,
                     color = Color.Gray
                 )
@@ -170,7 +164,7 @@ fun WordSearchGameScreen(
 
         // Progress
         Text(
-            text = "Found: ${foundWords.size}/${topic.words.size}",
+            text = "Found: ${foundWords.size}/${placedWords.size}",
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
             color = Color(0xFF4CAF50)
@@ -190,11 +184,11 @@ fun WordSearchGameScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                topic.words.forEach { word ->
-                    val found = foundWords.any { it.word == word }
-                    val foundWord = foundWords.find { it.word == word }
+                placedWords.forEach { placed ->
+                    val found = foundWords.any { it.word == placed.word }
+                    val foundWord = foundWords.find { it.word == placed.word }
                     WordChip(
-                        word = word,
+                        word = placed.word,
                         isFound = found,
                         highlightColor = foundWord?.color
                     )
@@ -230,18 +224,18 @@ fun WordSearchGameScreen(
                         val selectedWord = selection.map { grid[it.row][it.col] }.joinToString("")
                         val reversedWord = selectedWord.reversed()
 
-                        val matchedWord = topic.words.find { word ->
-                            (word == selectedWord || word == reversedWord) &&
-                            foundWords.none { it.word == word }
+                        val matchedPlaced = placedWords.find { placed ->
+                            (placed.word == selectedWord || placed.word == reversedWord) &&
+                            foundWords.none { it.word == placed.word }
                         }
 
-                        if (matchedWord != null && selection.isNotEmpty()) {
+                        if (matchedPlaced != null && selection.isNotEmpty()) {
                             val highlightColor = wordHighlightColors[colorIndex % wordHighlightColors.size]
                             colorIndex++
 
                             foundWords.add(
                                 FoundWord(
-                                    word = matchedWord,
+                                    word = matchedPlaced.word,
                                     startRow = selection.first().row,
                                     startCol = selection.first().col,
                                     endRow = selection.last().row,
@@ -586,33 +580,83 @@ private fun formatTime(seconds: Int): String {
 }
 
 private fun generateWordSearchGrid(words: List<String>, gridSize: Int): Pair<Array<CharArray>, List<PlacedWord>> {
+    val directions = WordDirection.entries.toTypedArray()
+    val maxGridAttempts = 50
+
+    // Keep trying to generate a complete grid
+    repeat(maxGridAttempts) {
+        val grid = Array(gridSize) { CharArray(gridSize) { ' ' } }
+        val placedWords = mutableListOf<PlacedWord>()
+
+        // Sort words by length (longer first for better placement)
+        val sortedWords = words.sortedByDescending { it.length }
+
+        var allPlaced = true
+        for (word in sortedWords) {
+            val placed = tryPlaceWord(grid, word, directions, gridSize, placedWords)
+            if (!placed) {
+                allPlaced = false
+                break
+            }
+        }
+
+        // If all words were placed, fill remaining cells and return
+        if (allPlaced && placedWords.size == words.size) {
+            fillEmptyCells(grid, gridSize)
+            return Pair(grid, placedWords)
+        }
+    }
+
+    // Fallback: generate grid with as many words as possible
     val grid = Array(gridSize) { CharArray(gridSize) { ' ' } }
     val placedWords = mutableListOf<PlacedWord>()
-    val directions = WordDirection.entries.toTypedArray()
-
-    // Sort words by length (longer first for better placement)
     val sortedWords = words.sortedByDescending { it.length }
 
     for (word in sortedWords) {
-        var placed = false
-        var attempts = 0
-        val maxAttempts = 100
+        tryPlaceWord(grid, word, directions, gridSize, placedWords)
+    }
 
-        while (!placed && attempts < maxAttempts) {
-            attempts++
-            val direction = directions[Random.nextInt(directions.size)]
-            val startRow = Random.nextInt(gridSize)
-            val startCol = Random.nextInt(gridSize)
+    fillEmptyCells(grid, gridSize)
+    return Pair(grid, placedWords)
+}
 
-            if (canPlaceWord(grid, word, startRow, startCol, direction, gridSize)) {
-                placeWord(grid, word, startRow, startCol, direction)
-                placedWords.add(PlacedWord(word, startRow, startCol, direction))
-                placed = true
+private fun tryPlaceWord(
+    grid: Array<CharArray>,
+    word: String,
+    directions: Array<WordDirection>,
+    gridSize: Int,
+    placedWords: MutableList<PlacedWord>
+): Boolean {
+    // First try random placement (faster for sparse grids)
+    repeat(200) {
+        val direction = directions[Random.nextInt(directions.size)]
+        val startRow = Random.nextInt(gridSize)
+        val startCol = Random.nextInt(gridSize)
+
+        if (canPlaceWord(grid, word, startRow, startCol, direction, gridSize)) {
+            placeWord(grid, word, startRow, startCol, direction)
+            placedWords.add(PlacedWord(word, startRow, startCol, direction))
+            return true
+        }
+    }
+
+    // If random failed, try all possible positions systematically
+    for (direction in directions) {
+        for (row in 0 until gridSize) {
+            for (col in 0 until gridSize) {
+                if (canPlaceWord(grid, word, row, col, direction, gridSize)) {
+                    placeWord(grid, word, row, col, direction)
+                    placedWords.add(PlacedWord(word, row, col, direction))
+                    return true
+                }
             }
         }
     }
 
-    // Fill remaining cells with random letters
+    return false
+}
+
+private fun fillEmptyCells(grid: Array<CharArray>, gridSize: Int) {
     val letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     for (row in 0 until gridSize) {
         for (col in 0 until gridSize) {
@@ -621,8 +665,6 @@ private fun generateWordSearchGrid(words: List<String>, gridSize: Int): Pair<Arr
             }
         }
     }
-
-    return Pair(grid, placedWords)
 }
 
 private fun canPlaceWord(
