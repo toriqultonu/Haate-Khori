@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.sharp.AddCircle
 import androidx.compose.material.icons.sharp.Clear
 import androidx.compose.material3.Button
@@ -306,19 +307,19 @@ fun TracingCanvas(
                                 containerColor = if (isPlayingDemo) Color(0xFFFF9800) else Color(0xFF2196F3)
                             ),
                             shape = RoundedCornerShape(20.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
                         ) {
                             Icon(
-                                Icons.Default.PlayArrow,
+                                if (isPlayingDemo) Icons.Default.Star else Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(Modifier.width(2.dp))
-                            Text(
-                                if (isPlayingDemo) "Stop" else "Demo",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+//                            Spacer(Modifier.width(2.dp))
+//                            Text(
+//                                if (isPlayingDemo) "Stop" else "Demo",
+//                                fontWeight = FontWeight.Bold,
+//                                fontSize = 12.sp
+//                            )
                         }
 
                         Spacer(Modifier.width(4.dp))
@@ -702,10 +703,18 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
             stem + topBump + bottomBump
         }
         'C' -> {
-            arcPoints(centerX, centerY, 80 * scale, -60f, 60f, 30).reversed() +
-                    arcPoints(centerX, centerY, 80 * scale, 60f, 300f, 30).reversed()
-        }
-        'D' -> {
+            // The background 'C' is roughly a circle centered in the box.
+            // We use a radius that matches the visual background (approx 85 units at 300 scale)
+            val radius = 80 * scale
+            arcPoints(
+                cx = centerX,
+                cy = centerY,
+                radius = radius,
+                startAngle = 45f,
+                endAngle = 315f,
+                steps = 40
+            )
+        }        'D' -> {
             val stem = interpolate(
                 Offset(centerX - 50 * scale, centerY - 90 * scale),
                 Offset(centerX - 50 * scale, centerY + 90 * scale),
@@ -756,14 +765,26 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
             stem + top + middle
         }
         'G' -> {
-            val arc = arcPoints(centerX, centerY, 80 * scale, -60f, 240f, 35)
-            val bar = interpolate(
-                Offset(centerX + 80 * scale * cos(Math.toRadians(-60.0)).toFloat(),
-                    centerY + 80 * scale * sin(Math.toRadians(-60.0)).toFloat()),
-                Offset(centerX, centerY),
-                10
+            val radius = 85 * scale
+
+            // 1. The main curve of the G (similar to C, but ends a bit later)
+            // Starts at top-right (330°) and sweeps around to the middle-right (20°)
+            val curve = arcPoints(
+                cx = centerX,
+                cy = centerY,
+                radius = radius,
+                startAngle = 330f,
+                endAngle = 30f,
+                steps = 40
             )
-            arc + bar
+
+            // 2. The horizontal crossbar
+            // We start from where the curve ends (approx) and move toward the center
+            val barStart = Offset(centerX + radius, centerY + 20 * scale)
+            val barEnd = Offset(centerX + 20 * scale, centerY + 20 * scale)
+            val crossBar = interpolate(barStart, barEnd, 10)
+
+            curve + crossBar
         }
         'H' -> {
             val leftStem = interpolate(
@@ -923,10 +944,43 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
             stem + bump + leg
         }
         'S' -> {
-            val topCurve = arcPoints(centerX, centerY - 40 * scale, 50 * scale, -30f, 210f, 20)
-            val bottomCurve = arcPoints(centerX, centerY + 40 * scale, 50 * scale, 150f, 390f, 20)
-            topCurve + bottomCurve
+            val radius = 48 * scale
+            val topCenterY = centerY - 45 * scale
+            val bottomCenterY = centerY + 45 * scale
+
+            // 1. Top Curve: Sweeps from top-right to middle-left
+            // Start at 340° (top right) and sweep to 160° (middle left)
+            val topCurve = arcPoints(
+                cx = centerX,
+                cy = topCenterY,
+                radius = radius,
+                startAngle = 340f,
+                endAngle = 160f,
+                steps = 30
+            )
+
+            // 2. Middle Connection: Crosses from the middle-left to the middle-right
+            // This follows the diagonal spine of the S
+            val transitionEnd = Offset(
+                centerX + radius * cos(Math.toRadians(20.0).toFloat()),
+                bottomCenterY + radius * sin(Math.toRadians(200.0).toFloat())
+            )
+            val middleConnection = interpolate(topCurve.last(), transitionEnd, 15)
+
+            // 3. Bottom Curve: Sweeps from middle-right down to the bottom-left
+            // Start at 20° (middle right) and sweep to 200° (bottom left)
+            val bottomCurve = arcPoints(
+                cx = centerX,
+                cy = bottomCenterY,
+                radius = radius,
+                startAngle = 0f,
+                endAngle = 200f,
+                steps = 30
+            )
+
+            topCurve + middleConnection + bottomCurve
         }
+
         'T' -> {
             val stem = interpolate(
                 Offset(centerX, centerY - 90 * scale),
@@ -946,7 +1000,7 @@ fun getLetterPath(letter: Char, size: Float, canvasWidth: Float = size, canvasHe
                 Offset(centerX - 50 * scale, centerY + 30 * scale),
                 18
             )
-            val curve = arcPoints(centerX, centerY + 30 * scale, 50 * scale, 180f, 360f, 20)
+            val curve = arcPoints(centerX, centerY + 30 * scale, 50 * scale, -180f, -360f, 20)
             val rightStem = interpolate(
                 Offset(centerX + 50 * scale, centerY + 30 * scale),
                 Offset(centerX + 50 * scale, centerY - 90 * scale),
