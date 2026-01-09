@@ -556,7 +556,6 @@ fun TracingCanvas(
 
                         val currentStroke = letterStrokes[currentStrokeIndex]
                         val indexInCurrentStroke = currentGlobalIndex - pointsBeforeCurrentStroke
-                        val trailLength = 30
 
                         // Draw completed strokes (fully traced)
                         for (i in 0 until currentStrokeIndex) {
@@ -580,13 +579,12 @@ fun TracingCanvas(
                             }
                         }
 
-                        // Draw current stroke trail (only within current stroke, not crossing strokes)
-                        val trailStart = maxOf(0, indexInCurrentStroke - trailLength)
-                        if (indexInCurrentStroke > trailStart && currentStroke.isNotEmpty()) {
+                        // Draw current stroke - grows from start to current position
+                        if (indexInCurrentStroke > 0 && currentStroke.isNotEmpty()) {
                             val trailPath = Path().apply {
-                                for (i in trailStart..indexInCurrentStroke.coerceAtMost(currentStroke.size - 1)) {
+                                for (i in 0..indexInCurrentStroke.coerceAtMost(currentStroke.size - 1)) {
                                     val point = currentStroke[i]
-                                    if (i == trailStart) moveTo(point.x, point.y)
+                                    if (i == 0) moveTo(point.x, point.y)
                                     else lineTo(point.x, point.y)
                                 }
                             }
