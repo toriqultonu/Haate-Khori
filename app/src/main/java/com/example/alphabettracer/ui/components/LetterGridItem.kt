@@ -30,10 +30,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.model.MatchResult
+import com.example.alphabettracer.util.SoundManager
 
 @Composable
 fun LetterGridItem(
@@ -41,6 +43,8 @@ fun LetterGridItem(
     result: MatchResult,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
     // Colors based on result: Green (Excellent), Yellow (Good), Red (Poor), White (None)
     val (backgroundColor, textColor, icon) = when (result) {
         MatchResult.EXCELLENT -> Triple(Color(0xFF4CAF50), Color.White, "⭐")  // Green
@@ -106,7 +110,10 @@ fun LetterGridItem(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() },
+            ) {
+                SoundManager.playLetterSelect(context)
+                onClick()
+            },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {

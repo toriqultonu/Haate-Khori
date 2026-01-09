@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.model.DrawStroke
 import com.example.alphabettracer.model.MatchResult
+import com.example.alphabettracer.util.SoundManager
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -240,7 +241,10 @@ fun TracingCanvas(
                         // Pencil/Eraser toggle
                         FilledIconToggleButton(
                             checked = !isErase,
-                            onCheckedChange = { isErase = !it },
+                            onCheckedChange = {
+                                isErase = !it
+                                SoundManager.playErase(context)
+                            },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
@@ -255,6 +259,7 @@ fun TracingCanvas(
                         // Clear button
                         IconButton(
                             onClick = {
+                                SoundManager.playClear(context)
                                 strokes.clear()
                                 currentStroke.clear()
                                 matchResult = MatchResult.NONE
@@ -269,7 +274,10 @@ fun TracingCanvas(
 
                         // Show/hide guide toggle
                         IconButton(
-                            onClick = { showGuide = !showGuide },
+                            onClick = {
+                                SoundManager.playButtonClick(context)
+                                showGuide = !showGuide
+                            },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
@@ -284,6 +292,7 @@ fun TracingCanvas(
                         IconButton(
                             onClick = {
                                 if (strokes.isNotEmpty()) {
+                                    SoundManager.playUndo(context)
                                     strokes.removeAt(strokes.lastIndex)
                                     hasChecked = false  // Reset check status when undoing
                                 }
@@ -302,7 +311,12 @@ fun TracingCanvas(
 
                         // SHOW ME BUTTON - animated demo
                         Button(
-                            onClick = { isPlayingDemo = !isPlayingDemo },
+                            onClick = {
+                                if (!isPlayingDemo) {
+                                    SoundManager.playDemoStart(context)
+                                }
+                                isPlayingDemo = !isPlayingDemo
+                            },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isPlayingDemo) Color(0xFFFF9800) else Color(0xFF2196F3)
                             ),
@@ -326,7 +340,10 @@ fun TracingCanvas(
 
                         // CHECK BUTTON - prominent button to check drawing
                         Button(
-                            onClick = { checkDrawing() },
+                            onClick = {
+                                SoundManager.playButtonClick(context)
+                                checkDrawing()
+                            },
                             enabled = strokes.isNotEmpty() && !isPlayingDemo,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF4CAF50),
@@ -407,6 +424,7 @@ fun TracingCanvas(
                                         }
                                     },
                                     onClick = {
+                                        SoundManager.playColorPick(context)
                                         currentColor = color
                                         LetterStorage.saveSelectedColor(context, index)  // Save color preference
                                         onColorSelected(index)
@@ -480,6 +498,7 @@ fun TracingCanvas(
                         detectDragGestures(
                             onDragStart = { offset ->
                                 if (!isErase) {
+                                    SoundManager.playStrokeStart(context)
                                     currentStroke = mutableListOf(offset)
                                     // Reset check status when user starts drawing again
                                     if (hasChecked) {
@@ -507,6 +526,7 @@ fun TracingCanvas(
                             },
                             onDragEnd = {
                                 if (!isErase && currentStroke.size > 1) {
+                                    SoundManager.playStrokeEnd(context)
                                     strokes.add(DrawStroke(currentStroke.toList(), currentColor, strokeWidth))
                                 }
                                 currentStroke = mutableListOf()

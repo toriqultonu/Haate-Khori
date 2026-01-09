@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +38,7 @@ import com.example.alphabettracer.data.alphabetList
 import com.example.alphabettracer.model.Achievement
 import com.example.alphabettracer.model.ScreenState
 import com.example.alphabettracer.ui.components.AchievementPopup
+import com.example.alphabettracer.util.SoundManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +63,11 @@ fun AlphabetTracingApp() {
     var pendingAchievement by remember { mutableStateOf<Achievement?>(null) }
     var colorsUsed by remember {
         mutableStateOf(AchievementStorage.getColorsUsedCount(context))
+    }
+
+    // Initialize SoundManager on first composition
+    LaunchedEffect(Unit) {
+        SoundManager.initialize(context)
     }
 
     Scaffold(
@@ -171,6 +178,10 @@ fun AlphabetTracingApp() {
 
     // Achievement popup
     pendingAchievement?.let { achievement ->
+        // Play achievement sound when popup appears
+        LaunchedEffect(achievement) {
+            SoundManager.playAchievement(context)
+        }
         AchievementPopup(
             achievement = achievement,
             isVisible = true,
