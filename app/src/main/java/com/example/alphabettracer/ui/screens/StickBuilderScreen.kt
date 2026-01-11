@@ -1,8 +1,6 @@
 package com.example.alphabettracer.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -12,6 +10,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,7 +46,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,163 +56,169 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.data.ChallengeType
-import com.example.alphabettracer.data.NumberStickPatterns
+import com.example.alphabettracer.data.DigitSegments
+import com.example.alphabettracer.data.SegmentPosition
+import com.example.alphabettracer.data.SevenSegmentLayout
 import com.example.alphabettracer.data.StickBuilderLevels
 import com.example.alphabettracer.data.StickBuilderStorage
-import com.example.alphabettracer.data.StickSegment
 import com.example.alphabettracer.data.stickColors
-import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-// Represents a stick placed on the canvas
+// A stick that has been placed on the canvas
 data class PlacedStick(
     val id: Int,
     val colorIndex: Int,
-    val startX: Float,
-    val startY: Float,
-    val endX: Float,
-    val endY: Float,
-    val matchedSegmentId: Int = -1
+    val x: Float,           // Screen position X
+    val y: Float,           // Screen position Y
+    val isHorizontal: Boolean,
+    val rotation: Float = if (isHorizontal) 0f else 90f  // 0 = horizontal, 90 = vertical
 )
 
-// Represents a draggable stick in the tray
+// A stick in the tray that can be dragged
 data class TrayStick(
     val id: Int,
     val colorIndex: Int
 )
-
-// Represents a stick being dragged (for overlay rendering)
-data class DraggingStick(
-    val id: Int,
-    val colorIndex: Int,
-    val currentX: Float,
-    val currentY: Float
-)
-
-// Calculate distance from point to line segment
-private fun distanceToSegment(
-    px: Float, py: Float,
-    x1: Float, y1: Float,
-    x2: Float, y2: Float
-): Float {
-    val dx = x2 - x1
-    val dy = y2 - y1
-    val lengthSq = dx * dx + dy * dy
-
-    if (lengthSq == 0f) {
-        return sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1))
-    }
-
-    val t = (((px - x1) * dx + (py - y1) * dy) / lengthSq).coerceIn(0f, 1f)
-    val projX = x1 + t * dx
-    val projY = y1 + t * dy
-
-    return sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY))
-}
-
-// Find closest unmatched segment within threshold
-private fun findMatchingSegment(
-    dropX: Float,
-    dropY: Float,
-    canvasBounds: Rect,
-    pattern: List<StickSegment>,
-    matchedIds: Set<Int>,
-    threshold: Float = 0.18f
-): StickSegment? {
-    if (canvasBounds.isEmpty) return null
-
-    // Convert screen position to normalized (0-1) canvas coordinates
-    val normX = (dropX - canvasBounds.left) / canvasBounds.width
-    val normY = (dropY - canvasBounds.top) / canvasBounds.height
-
-    // Must be within canvas bounds (with tolerance)
-    if (normX < -0.15f || normX > 1.15f || normY < -0.15f || normY > 1.15f) {
-        return null
-    }
-
-    var bestSegment: StickSegment? = null
-    var bestDistance = Float.MAX_VALUE
-
-    for (segment in pattern) {
-        if (matchedIds.contains(segment.id)) continue
-
-        val dist = distanceToSegment(
-            normX, normY,
-            segment.startX, segment.startY,
-            segment.endX, segment.endY
-        )
-
-        if (dist < bestDistance && dist < threshold) {
-            bestDistance = dist
-            bestSegment = segment
-        }
-    }
-
-    return bestSegment
-}
 
 @Composable
 fun StickBuilderScreen(
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
+
     var currentLevelId by remember { mutableIntStateOf(StickBuilderStorage.getCurrentLevel(context)) }
     val challenge = remember(currentLevelId) {
         StickBuilderLevels.getChallengeById(currentLevelId) ?: StickBuilderLevels.allChallenges.first()
     }
     val targetNumber = remember(challenge) { StickBuilderLevels.getTargetNumber(challenge) }
-    val targetPattern = remember(targetNumber) { NumberStickPatterns.getPatternForNumber(targetNumber) }
+    val requiredStickCount = remember(targetNumber) { DigitSegments.getStickCountForDigit(targetNumber) }
 
-    // Game state
+    // Placed sticks on canvas
     val placedSticks = remember { mutableStateListOf<PlacedStick>() }
-    val matchedSegmentIds = remember { mutableStateListOf<Int>() }
-    var showHint by remember { mutableStateOf(false) }
-    var levelCompleted by remember { mutableStateOf(false) }
-    var showCelebration by remember { mutableStateOf(false) }
 
-    // Canvas bounds for hit detection
-    var canvasBounds by remember { mutableStateOf(Rect.Zero) }
-
-    // Dragging state for overlay - renders the dragged stick above everything
-    var draggingStick by remember { mutableStateOf<DraggingStick?>(null) }
-
-    // Tray sticks
+    // Tray sticks (all same alignment - vertical in tray)
     val traySticks = remember { mutableStateListOf<TrayStick>() }
+
+    // Initialize tray with enough sticks
     if (traySticks.isEmpty()) {
-        repeat(6) { index ->
+        repeat(requiredStickCount.coerceAtLeast(7)) { index ->
             traySticks.add(TrayStick(id = index, colorIndex = index % stickColors.size))
         }
     }
+
+    var showHint by remember { mutableStateOf(false) }
+    var levelCompleted by remember { mutableStateOf(false) }
+    var showCelebration by remember { mutableStateOf(false) }
+    var recognizedNumber by remember { mutableStateOf<Int?>(null) }
+    var showResult by remember { mutableStateOf(false) }
+    var isCorrect by remember { mutableStateOf(false) }
+
+    // Canvas bounds for coordinate conversion
+    var canvasBounds by remember { mutableStateOf(Rect.Zero) }
+
+    // Currently dragging
+    var draggingStickId by remember { mutableStateOf<Int?>(null) }
+    var draggingPosition by remember { mutableStateOf(Offset.Zero) }
+    var draggingIsHorizontal by remember { mutableStateOf(true) }  // Current rotation while dragging
+    var draggingFromTray by remember { mutableStateOf(false) }
 
     // Reset function
     fun resetLevel() {
         placedSticks.clear()
-        matchedSegmentIds.clear()
+        traySticks.clear()
         showHint = false
         levelCompleted = false
         showCelebration = false
-        draggingStick = null
-        traySticks.clear()
-        repeat(6) { index ->
+        recognizedNumber = null
+        showResult = false
+        isCorrect = false
+        draggingStickId = null
+
+        // Recreate tray sticks
+        repeat(requiredStickCount.coerceAtLeast(7)) { index ->
             traySticks.add(TrayStick(id = index, colorIndex = index % stickColors.size))
         }
     }
 
-    // Check completion
-    fun checkCompletion(): Boolean {
-        return matchedSegmentIds.size >= targetPattern.size
+    // Find which segment a stick is closest to
+    fun findMatchingSegment(
+        stickX: Float,
+        stickY: Float,
+        isHorizontal: Boolean,
+        canvasWidth: Float,
+        canvasHeight: Float
+    ): SegmentPosition? {
+        if (canvasBounds.isEmpty) return null
+
+        // Normalize position to 0-1 range within canvas
+        val normX = (stickX - canvasBounds.left) / canvasBounds.width
+        val normY = (stickY - canvasBounds.top) / canvasBounds.height
+
+        // Check each segment slot
+        val threshold = 0.15f
+
+        for (slot in SevenSegmentLayout.slots) {
+            val slotIsHorizontal = slot.isHorizontal
+            if (isHorizontal != slotIsHorizontal) continue
+
+            val dx = normX - slot.centerX
+            val dy = normY - slot.centerY
+            val dist = sqrt(dx * dx + dy * dy)
+
+            if (dist < threshold) {
+                return slot.position
+            }
+        }
+        return null
+    }
+
+    // Recognize number from placed sticks
+    fun recognizeNumberFromSticks(): Int? {
+        if (canvasBounds.isEmpty) return null
+
+        val activeSegments = mutableSetOf<SegmentPosition>()
+
+        for (stick in placedSticks) {
+            val segment = findMatchingSegment(
+                stick.x, stick.y,
+                stick.isHorizontal,
+                canvasBounds.width,
+                canvasBounds.height
+            )
+            if (segment != null) {
+                activeSegments.add(segment)
+            }
+        }
+
+        return DigitSegments.recognizeDigit(activeSegments)
+    }
+
+    // Check answer
+    fun checkAnswer() {
+        val number = recognizeNumberFromSticks()
+        recognizedNumber = number
+        isCorrect = number == targetNumber
+        showResult = true
+
+        if (isCorrect) {
+            levelCompleted = true
+            showCelebration = true
+            StickBuilderStorage.saveChallengeCompleted(context, challenge.id)
+        }
     }
 
     // Navigate to next level
@@ -234,7 +239,6 @@ fun StickBuilderScreen(
         }
     }
 
-    // Main content wrapped in Box for overlay support
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -251,13 +255,12 @@ fun StickBuilderScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Header with title and sun mascot
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Title
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("🪵", fontSize = 24.sp)
@@ -275,8 +278,6 @@ fun StickBuilderScreen(
                         color = Color.Gray
                     )
                 }
-
-                // Sun mascot
                 SunMascot()
             }
 
@@ -310,6 +311,13 @@ fun StickBuilderScreen(
                             color = Color.Gray
                         )
                     }
+
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Drag sticks • Double-tap to rotate",
+                        fontSize = 12.sp,
+                        color = Color(0xFF8B4513)
+                    )
                 }
             }
 
@@ -325,42 +333,121 @@ fun StickBuilderScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coords ->
+                            canvasBounds = coords.boundsInRoot()
+                        }
                 ) {
-                    // Target number outline (dashed) - ONLY shown when hint is active
-                    if (showHint) {
-                        NumberOutlineCanvas(
-                            pattern = targetPattern,
-                            matchedIds = matchedSegmentIds.toSet(),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp)
-                                .onGloballyPositioned { coords ->
-                                    canvasBounds = coords.boundsInRoot()
+                    // Draw 7-segment outline guide
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp)
+                    ) {
+                        val canvasWidth = size.width
+                        val canvasHeight = size.height
+
+                        // Draw segment guides
+                        val guideColor = if (showHint) Color(0xFF4CAF50).copy(alpha = 0.5f)
+                                        else Color.LightGray.copy(alpha = 0.3f)
+                        val strokeWidth = if (showHint) 24f else 18f
+
+                        // Calculate positions for 7-segment display
+                        val left = canvasWidth * 0.2f
+                        val right = canvasWidth * 0.8f
+                        val top = canvasHeight * 0.1f
+                        val middle = canvasHeight * 0.5f
+                        val bottom = canvasHeight * 0.9f
+
+                        // A - Top horizontal
+                        drawLine(guideColor, Offset(left, top), Offset(right, top), strokeWidth, StrokeCap.Round)
+                        // B - Top-right vertical
+                        drawLine(guideColor, Offset(right, top), Offset(right, middle), strokeWidth, StrokeCap.Round)
+                        // C - Bottom-right vertical
+                        drawLine(guideColor, Offset(right, middle), Offset(right, bottom), strokeWidth, StrokeCap.Round)
+                        // D - Bottom horizontal
+                        drawLine(guideColor, Offset(left, bottom), Offset(right, bottom), strokeWidth, StrokeCap.Round)
+                        // E - Bottom-left vertical
+                        drawLine(guideColor, Offset(left, middle), Offset(left, bottom), strokeWidth, StrokeCap.Round)
+                        // F - Top-left vertical
+                        drawLine(guideColor, Offset(left, top), Offset(left, middle), strokeWidth, StrokeCap.Round)
+                        // G - Middle horizontal
+                        drawLine(guideColor, Offset(left, middle), Offset(right, middle), strokeWidth, StrokeCap.Round)
+
+                        // If hint is on, highlight the segments needed for target number
+                        if (showHint) {
+                            val targetSegments = DigitSegments.getSegmentsForDigit(targetNumber)
+                            val hintColor = Color(0xFF4CAF50).copy(alpha = 0.7f)
+
+                            if (SegmentPosition.A in targetSegments) {
+                                drawLine(hintColor, Offset(left, top), Offset(right, top), strokeWidth + 4, StrokeCap.Round)
+                            }
+                            if (SegmentPosition.B in targetSegments) {
+                                drawLine(hintColor, Offset(right, top), Offset(right, middle), strokeWidth + 4, StrokeCap.Round)
+                            }
+                            if (SegmentPosition.C in targetSegments) {
+                                drawLine(hintColor, Offset(right, middle), Offset(right, bottom), strokeWidth + 4, StrokeCap.Round)
+                            }
+                            if (SegmentPosition.D in targetSegments) {
+                                drawLine(hintColor, Offset(left, bottom), Offset(right, bottom), strokeWidth + 4, StrokeCap.Round)
+                            }
+                            if (SegmentPosition.E in targetSegments) {
+                                drawLine(hintColor, Offset(left, middle), Offset(left, bottom), strokeWidth + 4, StrokeCap.Round)
+                            }
+                            if (SegmentPosition.F in targetSegments) {
+                                drawLine(hintColor, Offset(left, top), Offset(left, middle), strokeWidth + 4, StrokeCap.Round)
+                            }
+                            if (SegmentPosition.G in targetSegments) {
+                                drawLine(hintColor, Offset(left, middle), Offset(right, middle), strokeWidth + 4, StrokeCap.Round)
+                            }
+                        }
+                    }
+
+                    // Render placed sticks
+                    placedSticks.forEach { stick ->
+                        PlacedStickView(
+                            stick = stick,
+                            canvasBounds = canvasBounds,
+                            onDragStart = {
+                                draggingStickId = stick.id
+                                draggingPosition = Offset(stick.x, stick.y)
+                                draggingIsHorizontal = stick.isHorizontal
+                                draggingFromTray = false
+                            },
+                            onDrag = { offset ->
+                                draggingPosition = Offset(
+                                    draggingPosition.x + offset.x,
+                                    draggingPosition.y + offset.y
+                                )
+                            },
+                            onDragEnd = {
+                                // Update stick position
+                                val index = placedSticks.indexOfFirst { it.id == stick.id }
+                                if (index >= 0) {
+                                    placedSticks[index] = stick.copy(
+                                        x = draggingPosition.x,
+                                        y = draggingPosition.y,
+                                        isHorizontal = draggingIsHorizontal
+                                    )
                                 }
-                        )
-                    } else {
-                        // Still need to track bounds even when not showing hint
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp)
-                                .onGloballyPositioned { coords ->
-                                    canvasBounds = coords.boundsInRoot()
+                                draggingStickId = null
+                            },
+                            onDoubleTap = {
+                                // Rotate the stick
+                                val index = placedSticks.indexOfFirst { it.id == stick.id }
+                                if (index >= 0) {
+                                    val currentStick = placedSticks[index]
+                                    placedSticks[index] = currentStick.copy(
+                                        isHorizontal = !currentStick.isHorizontal
+                                    )
                                 }
+                            },
+                            isDragging = draggingStickId == stick.id
                         )
                     }
 
-                    // Placed sticks - always visible
-                    PlacedSticksCanvas(
-                        sticks = placedSticks,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp)
-                    )
-
-                    // Hint button (top-left)
+                    // Hint button
                     IconButton(
                         onClick = { showHint = !showHint },
                         modifier = Modifier
@@ -370,108 +457,164 @@ fun StickBuilderScreen(
                                 color = if (showHint) Color(0xFF4CAF50) else Color(0xFFFFB74D),
                                 shape = CircleShape
                             )
-                            .size(48.dp)
+                            .size(44.dp)
                     ) {
-                        Text(
-                            "💡",
-                            fontSize = 20.sp
-                        )
+                        Text("💡", fontSize = 18.sp)
                     }
 
-                    // Reset button (bottom-left)
+                    // Reset button
                     IconButton(
                         onClick = { resetLevel() },
                         modifier = Modifier
-                            .align(Alignment.BottomStart)
+                            .align(Alignment.TopEnd)
                             .padding(8.dp)
                             .background(
-                                color = Color(0xFF4CAF50),
+                                color = Color(0xFFFF5722),
                                 shape = CircleShape
                             )
-                            .size(48.dp)
+                            .size(44.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Reset",
-                            tint = Color.White
-                        )
+                        Icon(Icons.Default.Refresh, "Reset", tint = Color.White)
                     }
+                }
+            }
 
-                    // Done button (bottom-right)
-                    Button(
-                        onClick = {
-                            if (checkCompletion()) {
-                                levelCompleted = true
-                                showCelebration = true
-                                StickBuilderStorage.saveChallengeCompleted(context, challenge.id)
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+            Spacer(Modifier.height(12.dp))
+
+            // Stick tray
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFD7CCC8)),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    Text(
+                        "Drag sticks from here:",
+                        fontSize = 12.sp,
+                        color = Color(0xFF5D4037),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFBCAAA4)),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("DONE!", fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            traySticks.forEach { stick ->
+                                DraggableTrayStick(
+                                    stick = stick,
+                                    onDragStart = { startPos ->
+                                        draggingStickId = stick.id + 1000  // Offset ID for tray sticks
+                                        draggingPosition = startPos
+                                        draggingIsHorizontal = false  // Start vertical
+                                        draggingFromTray = true
+                                    },
+                                    onDrag = { offset ->
+                                        draggingPosition = Offset(
+                                            draggingPosition.x + offset.x,
+                                            draggingPosition.y + offset.y
+                                        )
+                                    },
+                                    onDragEnd = { dropPos ->
+                                        // Check if dropped on canvas area
+                                        if (dropPos.x >= canvasBounds.left &&
+                                            dropPos.x <= canvasBounds.right &&
+                                            dropPos.y >= canvasBounds.top &&
+                                            dropPos.y <= canvasBounds.bottom) {
+
+                                            // Add as placed stick
+                                            placedSticks.add(
+                                                PlacedStick(
+                                                    id = System.currentTimeMillis().toInt(),
+                                                    colorIndex = stick.colorIndex,
+                                                    x = dropPos.x,
+                                                    y = dropPos.y,
+                                                    isHorizontal = draggingIsHorizontal
+                                                )
+                                            )
+                                            // Remove from tray
+                                            traySticks.removeIf { it.id == stick.id }
+                                        }
+                                        draggingStickId = null
+                                        draggingFromTray = false
+                                    },
+                                    isDragging = draggingStickId == stick.id + 1000
+                                )
+                            }
+
+                            // Show empty slots if not enough sticks
+                            if (traySticks.isEmpty()) {
+                                Text(
+                                    "All sticks placed!",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF5D4037)
+                                )
+                            }
+                        }
                     }
                 }
             }
 
             Spacer(Modifier.height(16.dp))
 
-            // Stick tray
-            StickTray(
-                traySticks = traySticks,
-                targetPattern = targetPattern,
-                canvasBounds = canvasBounds,
-                matchedIds = matchedSegmentIds.toSet(),
-                onDragStart = { stick, x, y ->
-                    draggingStick = DraggingStick(stick.id, stick.colorIndex, x, y)
-                },
-                onDragMove = { x, y ->
-                    draggingStick = draggingStick?.copy(currentX = x, currentY = y)
-                },
-                onDragEnd = { stick, dropX, dropY ->
-                    // Find matching segment
-                    val matched = findMatchingSegment(
-                        dropX = dropX,
-                        dropY = dropY,
-                        canvasBounds = canvasBounds,
-                        pattern = targetPattern,
-                        matchedIds = matchedSegmentIds.toSet()
-                    )
+            // Check Answer button
+            Button(
+                onClick = { checkAnswer() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("CHECK ANSWER", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
 
-                    if (matched != null) {
-                        // Place the stick
-                        placedSticks.add(
-                            PlacedStick(
-                                id = System.currentTimeMillis().toInt(),
-                                colorIndex = stick.colorIndex,
-                                startX = matched.startX,
-                                startY = matched.startY,
-                                endX = matched.endX,
-                                endY = matched.endY,
-                                matchedSegmentId = matched.id
-                            )
+            // Result feedback
+            AnimatedVisibility(visible = showResult) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isCorrect) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isCorrect) "Correct!" else "Try Again!",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
                         )
-                        matchedSegmentIds.add(matched.id)
-
-                        // Remove the stick from tray
-                        traySticks.removeIf { it.id == stick.id }
+                        if (recognizedNumber != null) {
+                            Text("You made: $recognizedNumber", fontSize = 16.sp, color = Color.Gray)
+                        } else {
+                            Text("Couldn't recognize a number", fontSize = 16.sp, color = Color.Gray)
+                        }
+                        Text("Expected: $targetNumber", fontSize = 14.sp, color = Color.Gray)
                     }
-
-                    draggingStick = null
-                },
-                onDragCancel = {
-                    draggingStick = null
                 }
-            )
+            }
 
             Spacer(Modifier.height(16.dp))
 
-            // Navigation buttons
+            // Navigation
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -479,21 +622,17 @@ fun StickBuilderScreen(
                 Button(
                     onClick = { goToPreviousLevel() },
                     enabled = currentLevelId > 1,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6200EE)
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Previous")
                     Spacer(Modifier.width(4.dp))
                     Text("Previous")
                 }
 
                 Button(
                     onClick = onBackPressed,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF9800)
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Back Home")
@@ -502,26 +641,31 @@ fun StickBuilderScreen(
                 Button(
                     onClick = { goToNextLevel() },
                     enabled = currentLevelId < StickBuilderLevels.allChallenges.size,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6200EE)
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Next")
                     Spacer(Modifier.width(4.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next")
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, "Next")
                 }
             }
 
             Spacer(Modifier.height(32.dp))
         }
 
-        // Dragging stick overlay - renders ABOVE everything
-        draggingStick?.let { dragStick ->
+        // Dragging overlay - shows the stick being dragged
+        if (draggingStickId != null) {
+            val colorIndex = if (draggingFromTray) {
+                traySticks.find { it.id + 1000 == draggingStickId }?.colorIndex ?: 0
+            } else {
+                placedSticks.find { it.id == draggingStickId }?.colorIndex ?: 0
+            }
+
             DraggingStickOverlay(
-                colorIndex = dragStick.colorIndex,
-                x = dragStick.currentX,
-                y = dragStick.currentY
+                colorIndex = colorIndex,
+                position = draggingPosition,
+                isHorizontal = draggingIsHorizontal,
+                onRotate = { draggingIsHorizontal = !draggingIsHorizontal }
             )
         }
 
@@ -532,6 +676,7 @@ fun StickBuilderScreen(
             exit = fadeOut() + scaleOut()
         ) {
             CelebrationOverlay(
+                targetNumber = targetNumber,
                 onDismiss = { showCelebration = false },
                 onNextLevel = {
                     showCelebration = false
@@ -544,39 +689,198 @@ fun StickBuilderScreen(
 }
 
 @Composable
+private fun DraggableTrayStick(
+    stick: TrayStick,
+    onDragStart: (Offset) -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: (Offset) -> Unit,
+    isDragging: Boolean
+) {
+    val color = stickColors[stick.colorIndex % stickColors.size]
+
+    var stickPosition by remember { mutableStateOf(Offset.Zero) }
+    var accumulatedOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val scale by animateFloatAsState(
+        targetValue = if (isDragging) 0.5f else 1f,
+        animationSpec = spring(),
+        label = "scale"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (isDragging) 0.3f else 1f,
+        animationSpec = spring(),
+        label = "alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .onGloballyPositioned { coords ->
+                stickPosition = coords.boundsInRoot().center
+            }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .width(20.dp)
+            .height(70.dp)
+            .shadow(elevation = 4.dp, shape = RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        color.copy(alpha = 0.9f),
+                        color,
+                        color.copy(alpha = 0.8f)
+                    )
+                )
+            )
+            .pointerInput(stick.id) {
+                detectDragGestures(
+                    onDragStart = {
+                        accumulatedOffset = Offset.Zero
+                        onDragStart(stickPosition)
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        accumulatedOffset = Offset(
+                            accumulatedOffset.x + dragAmount.x,
+                            accumulatedOffset.y + dragAmount.y
+                        )
+                        onDrag(dragAmount)
+                    },
+                    onDragEnd = {
+                        val finalPos = Offset(
+                            stickPosition.x + accumulatedOffset.x,
+                            stickPosition.y + accumulatedOffset.y
+                        )
+                        onDragEnd(finalPos)
+                        accumulatedOffset = Offset.Zero
+                    },
+                    onDragCancel = {
+                        accumulatedOffset = Offset.Zero
+                    }
+                )
+            }
+    )
+}
+
+@Composable
+private fun PlacedStickView(
+    stick: PlacedStick,
+    canvasBounds: Rect,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDoubleTap: () -> Unit,
+    isDragging: Boolean
+) {
+    val color = stickColors[stick.colorIndex % stickColors.size]
+    val density = LocalDensity.current
+
+    // Convert screen position to offset from canvas top-left
+    val offsetX = stick.x - canvasBounds.left
+    val offsetY = stick.y - canvasBounds.top
+
+    val stickWidth = with(density) { 20.dp.toPx() }
+    val stickHeight = with(density) { 80.dp.toPx() }
+
+    val scale by animateFloatAsState(
+        targetValue = if (isDragging) 1.2f else 1f,
+        animationSpec = spring(),
+        label = "scale"
+    )
+
+    Box(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    (offsetX - stickWidth / 2).roundToInt(),
+                    (offsetY - stickHeight / 2).roundToInt()
+                )
+            }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                rotationZ = if (stick.isHorizontal) 90f else 0f
+            }
+            .width(20.dp)
+            .height(80.dp)
+            .shadow(elevation = if (isDragging) 12.dp else 4.dp, shape = RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        color.copy(alpha = 0.9f),
+                        color,
+                        color.copy(alpha = 0.8f)
+                    )
+                )
+            )
+            .pointerInput(stick.id) {
+                detectTapGestures(
+                    onDoubleTap = { onDoubleTap() }
+                )
+            }
+            .pointerInput(stick.id) {
+                detectDragGestures(
+                    onDragStart = { onDragStart() },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount)
+                    },
+                    onDragEnd = { onDragEnd() }
+                )
+            }
+    )
+}
+
+@Composable
 private fun DraggingStickOverlay(
     colorIndex: Int,
-    x: Float,
-    y: Float
+    position: Offset,
+    isHorizontal: Boolean,
+    onRotate: () -> Unit
 ) {
     val color = stickColors[colorIndex % stickColors.size]
+    val density = LocalDensity.current
+
+    val stickWidth = with(density) { 20.dp.toPx() }
+    val stickHeight = with(density) { 80.dp.toPx() }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { onRotate() }
+                )
+            }
     ) {
         Box(
             modifier = Modifier
-                .graphicsLayer {
-                    translationX = x - 8.dp.toPx() // Center the stick
-                    translationY = y - 35.dp.toPx() // Center the stick
-                    scaleX = 1.4f
-                    scaleY = 1.4f
-                    shadowElevation = 16f
+                .offset {
+                    IntOffset(
+                        (position.x - stickWidth / 2).roundToInt(),
+                        (position.y - stickHeight / 2).roundToInt()
+                    )
                 }
-                .width(16.dp)
-                .height(70.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    shape = RoundedCornerShape(8.dp)
-                )
-                .clip(RoundedCornerShape(8.dp))
+                .graphicsLayer {
+                    scaleX = 1.3f
+                    scaleY = 1.3f
+                    rotationZ = if (isHorizontal) 90f else 0f
+                    shadowElevation = 20f
+                }
+                .width(20.dp)
+                .height(80.dp)
+                .shadow(elevation = 16.dp, shape = RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
                             color.copy(alpha = 0.95f),
                             color,
-                            color.copy(alpha = 0.85f)
+                            color.copy(alpha = 0.9f)
                         )
                     )
                 )
@@ -604,235 +908,8 @@ private fun SunMascot() {
 }
 
 @Composable
-private fun NumberOutlineCanvas(
-    pattern: List<StickSegment>,
-    matchedIds: Set<Int>,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        val dashEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 10f), 0f)
-
-        pattern.forEach { segment ->
-            val isMatched = matchedIds.contains(segment.id)
-            if (isMatched) return@forEach // Don't draw matched segments
-
-            val startX = segment.startX * size.width
-            val startY = segment.startY * size.height
-            val endX = segment.endX * size.width
-            val endY = segment.endY * size.height
-
-            // Dashed outline with hint color
-            val hintColor = stickColors[segment.id % stickColors.size]
-            drawLine(
-                color = hintColor.copy(alpha = 0.4f),
-                start = Offset(startX, startY),
-                end = Offset(endX, endY),
-                strokeWidth = 24f,
-                cap = StrokeCap.Round,
-                pathEffect = dashEffect
-            )
-        }
-    }
-}
-
-@Composable
-private fun PlacedSticksCanvas(
-    sticks: List<PlacedStick>,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        sticks.forEach { stick ->
-            val color = stickColors[stick.colorIndex % stickColors.size]
-            drawLine(
-                color = color,
-                start = Offset(stick.startX * size.width, stick.startY * size.height),
-                end = Offset(stick.endX * size.width, stick.endY * size.height),
-                strokeWidth = 22f,
-                cap = StrokeCap.Round
-            )
-        }
-    }
-}
-
-@Composable
-private fun StickTray(
-    traySticks: List<TrayStick>,
-    targetPattern: List<StickSegment>,
-    canvasBounds: Rect,
-    matchedIds: Set<Int>,
-    onDragStart: (TrayStick, Float, Float) -> Unit,
-    onDragMove: (Float, Float) -> Unit,
-    onDragEnd: (TrayStick, Float, Float) -> Unit,
-    onDragCancel: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFD7CCC8)),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp)
-                .padding(16.dp)
-        ) {
-            Card(
-                modifier = Modifier.fillMaxSize(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFBCAAA4)),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    traySticks.forEach { stick ->
-                        DraggableStick(
-                            stick = stick,
-                            onDragStart = onDragStart,
-                            onDragMove = onDragMove,
-                            onDragEnd = onDragEnd,
-                            onDragCancel = onDragCancel
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DraggableStick(
-    stick: TrayStick,
-    onDragStart: (TrayStick, Float, Float) -> Unit,
-    onDragMove: (Float, Float) -> Unit,
-    onDragEnd: (TrayStick, Float, Float) -> Unit,
-    onDragCancel: () -> Unit
-) {
-    val color = stickColors[stick.colorIndex % stickColors.size]
-    val scope = rememberCoroutineScope()
-
-    // Animated offset for smooth spring-back
-    val offsetX = remember { Animatable(0f) }
-    val offsetY = remember { Animatable(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-
-    // Track stick's base position in screen coordinates
-    var stickBasePosition by remember { mutableStateOf(Offset.Zero) }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isDragging) 0.8f else 1f, // Shrink when dragging (overlay shows the big one)
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "stickScale"
-    )
-
-    val alpha by animateFloatAsState(
-        targetValue = if (isDragging) 0.3f else 1f, // Fade when dragging
-        animationSpec = spring(),
-        label = "stickAlpha"
-    )
-
-    Box(
-        modifier = Modifier
-            .onGloballyPositioned { coords ->
-                val bounds = coords.boundsInRoot()
-                stickBasePosition = bounds.center
-            }
-            .graphicsLayer {
-                translationX = offsetX.value
-                translationY = offsetY.value
-                scaleX = scale
-                scaleY = scale
-                this.alpha = alpha
-            }
-            .width(16.dp)
-            .height(70.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        color.copy(alpha = 0.95f),
-                        color,
-                        color.copy(alpha = 0.85f)
-                    )
-                )
-            )
-            .pointerInput(stick.id) {
-                detectDragGestures(
-                    onDragStart = { startOffset ->
-                        isDragging = true
-                        val startX = stickBasePosition.x
-                        val startY = stickBasePosition.y
-                        onDragStart(stick, startX, startY)
-                    },
-                    onDragEnd = {
-                        isDragging = false
-
-                        // Calculate where the stick center is now
-                        val dropX = stickBasePosition.x + offsetX.value
-                        val dropY = stickBasePosition.y + offsetY.value
-
-                        onDragEnd(stick, dropX, dropY)
-
-                        // Spring back to original position
-                        scope.launch {
-                            launch {
-                                offsetX.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    )
-                                )
-                            }
-                            launch {
-                                offsetY.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    )
-                                )
-                            }
-                        }
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                        onDragCancel()
-                        scope.launch {
-                            launch { offsetX.animateTo(0f, spring()) }
-                            launch { offsetY.animateTo(0f, spring()) }
-                        }
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        // Immediate snap to finger position
-                        scope.launch {
-                            offsetX.snapTo(offsetX.value + dragAmount.x)
-                            offsetY.snapTo(offsetY.value + dragAmount.y)
-                        }
-                        // Update overlay position
-                        val currentX = stickBasePosition.x + offsetX.value + dragAmount.x
-                        val currentY = stickBasePosition.y + offsetY.value + dragAmount.y
-                        onDragMove(currentX, currentY)
-                    }
-                )
-            }
-    )
-}
-
-@Composable
 private fun CelebrationOverlay(
+    targetNumber: Int,
     onDismiss: () -> Unit,
     onNextLevel: () -> Unit,
     isLastLevel: Boolean
@@ -858,33 +935,34 @@ private fun CelebrationOverlay(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("🎉", fontSize = 64.sp)
-
                 Spacer(Modifier.height(16.dp))
-
                 Text(
                     "Awesome!",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF4CAF50)
                 )
-
                 Text(
-                    "You built the number perfectly!",
+                    "You built $targetNumber perfectly!",
                     fontSize = 16.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center
                 )
 
+                Spacer(Modifier.height(16.dp))
+
+                // 7-segment display of the number
+                SevenSegmentDisplay(
+                    digit = targetNumber,
+                    modifier = Modifier.size(80.dp, 120.dp)
+                )
+
                 Spacer(Modifier.height(24.dp))
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9800)
-                        ),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("Stay Here")
@@ -893,21 +971,82 @@ private fun CelebrationOverlay(
                     if (!isLastLevel) {
                         Button(
                             onClick = onNextLevel,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4CAF50)
-                            ),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("Next Level")
                             Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Next"
-                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, "Next")
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SevenSegmentDisplay(
+    digit: Int,
+    modifier: Modifier = Modifier,
+    onColor: Color = Color(0xFF4CAF50),
+    offColor: Color = Color(0xFFE0E0E0)
+) {
+    val segments = DigitSegments.getSegmentsForDigit(digit)
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = w * 0.12f
+        val pad = stroke / 2
+
+        val left = pad
+        val right = w - pad
+        val top = pad
+        val bottom = h - pad
+        val mid = h / 2
+
+        // A - Top
+        drawLine(
+            if (SegmentPosition.A in segments) onColor else offColor,
+            Offset(left + stroke, top), Offset(right - stroke, top),
+            stroke, StrokeCap.Round
+        )
+        // B - Top Right
+        drawLine(
+            if (SegmentPosition.B in segments) onColor else offColor,
+            Offset(right, top + stroke), Offset(right, mid - stroke / 2),
+            stroke, StrokeCap.Round
+        )
+        // C - Bottom Right
+        drawLine(
+            if (SegmentPosition.C in segments) onColor else offColor,
+            Offset(right, mid + stroke / 2), Offset(right, bottom - stroke),
+            stroke, StrokeCap.Round
+        )
+        // D - Bottom
+        drawLine(
+            if (SegmentPosition.D in segments) onColor else offColor,
+            Offset(left + stroke, bottom), Offset(right - stroke, bottom),
+            stroke, StrokeCap.Round
+        )
+        // E - Bottom Left
+        drawLine(
+            if (SegmentPosition.E in segments) onColor else offColor,
+            Offset(left, mid + stroke / 2), Offset(left, bottom - stroke),
+            stroke, StrokeCap.Round
+        )
+        // F - Top Left
+        drawLine(
+            if (SegmentPosition.F in segments) onColor else offColor,
+            Offset(left, top + stroke), Offset(left, mid - stroke / 2),
+            stroke, StrokeCap.Round
+        )
+        // G - Middle
+        drawLine(
+            if (SegmentPosition.G in segments) onColor else offColor,
+            Offset(left + stroke, mid), Offset(right - stroke, mid),
+            stroke, StrokeCap.Round
+        )
     }
 }
