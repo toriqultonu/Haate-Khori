@@ -108,6 +108,11 @@ fun AlphabetTracingApp() {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to topics")
                             }
                         }
+                        ScreenState.STICK_BUILDER -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
                         else -> {}
                     }
                 },
@@ -144,6 +149,9 @@ fun AlphabetTracingApp() {
                         },
                         onWordSearchClicked = {
                             screenState = ScreenState.WORD_SEARCH_TOPICS
+                        },
+                        onStickBuilderClicked = {
+                            screenState = ScreenState.STICK_BUILDER
                         }
                     )
                 }
@@ -206,6 +214,13 @@ fun AlphabetTracingApp() {
                             }
                         )
                     }
+                }
+                ScreenState.STICK_BUILDER -> {
+                    StickBuilderScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
                 }
             }
         }
