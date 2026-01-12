@@ -53,76 +53,58 @@ object NumberStickPatterns {
     private const val MIDDLE = 0.48f
     private const val BOTTOM = 0.88f
 
-    // Segment A - Top horizontal
-    private fun segA(id: Int) = StickSegment(LEFT, TOP, RIGHT, TOP, id)
+    // Segment IDs are FIXED based on position (A=0, B=1, C=2, D=3, E=4, F=5, G=6)
+    // Segment A - Top horizontal (ID = 0)
+    private val segA = StickSegment(LEFT, TOP, RIGHT, TOP, 0)
 
-    // Segment B - Top-right vertical
-    private fun segB(id: Int) = StickSegment(RIGHT, TOP, RIGHT, MIDDLE, id)
+    // Segment B - Top-right vertical (ID = 1)
+    private val segB = StickSegment(RIGHT, TOP, RIGHT, MIDDLE, 1)
 
-    // Segment C - Bottom-right vertical
-    private fun segC(id: Int) = StickSegment(RIGHT, MIDDLE, RIGHT, BOTTOM, id)
+    // Segment C - Bottom-right vertical (ID = 2)
+    private val segC = StickSegment(RIGHT, MIDDLE, RIGHT, BOTTOM, 2)
 
-    // Segment D - Bottom horizontal
-    private fun segD(id: Int) = StickSegment(LEFT, BOTTOM, RIGHT, BOTTOM, id)
+    // Segment D - Bottom horizontal (ID = 3)
+    private val segD = StickSegment(LEFT, BOTTOM, RIGHT, BOTTOM, 3)
 
-    // Segment E - Bottom-left vertical
-    private fun segE(id: Int) = StickSegment(LEFT, MIDDLE, LEFT, BOTTOM, id)
+    // Segment E - Bottom-left vertical (ID = 4)
+    private val segE = StickSegment(LEFT, MIDDLE, LEFT, BOTTOM, 4)
 
-    // Segment F - Top-left vertical
-    private fun segF(id: Int) = StickSegment(LEFT, TOP, LEFT, MIDDLE, id)
+    // Segment F - Top-left vertical (ID = 5)
+    private val segF = StickSegment(LEFT, TOP, LEFT, MIDDLE, 5)
 
-    // Segment G - Middle horizontal
-    private fun segG(id: Int) = StickSegment(LEFT, MIDDLE, RIGHT, MIDDLE, id)
+    // Segment G - Middle horizontal (ID = 6)
+    private val segG = StickSegment(LEFT, MIDDLE, RIGHT, MIDDLE, 6)
 
     // Number 0: A, B, C, D, E, F (all except G)
-    val zero = listOf(
-        segA(0), segB(1), segC(2), segD(3), segE(4), segF(5)
-    )
+    val zero = listOf(segA, segB, segC, segD, segE, segF)
 
     // Number 1: B, C (right side only)
-    val one = listOf(
-        segB(0), segC(1)
-    )
+    val one = listOf(segB, segC)
 
     // Number 2: A, B, G, E, D
-    val two = listOf(
-        segA(0), segB(1), segG(2), segE(3), segD(4)
-    )
+    val two = listOf(segA, segB, segG, segE, segD)
 
     // Number 3: A, B, G, C, D
-    val three = listOf(
-        segA(0), segB(1), segG(2), segC(3), segD(4)
-    )
+    val three = listOf(segA, segB, segG, segC, segD)
 
     // Number 4: F, G, B, C
-    val four = listOf(
-        segF(0), segG(1), segB(2), segC(3)
-    )
+    val four = listOf(segF, segG, segB, segC)
 
     // Number 5: A, F, G, C, D
-    val five = listOf(
-        segA(0), segF(1), segG(2), segC(3), segD(4)
-    )
+    val five = listOf(segA, segF, segG, segC, segD)
 
     // Number 6: A, F, G, E, D, C
-    val six = listOf(
-        segA(0), segF(1), segG(2), segE(3), segD(4), segC(5)
-    )
+    val six = listOf(segA, segF, segG, segE, segD, segC)
 
     // Number 7: A, B, C
-    val seven = listOf(
-        segA(0), segB(1), segC(2)
-    )
+    // Number 7: A, B, C
+    val seven = listOf(segA, segB, segC)
 
     // Number 8: All segments A, B, C, D, E, F, G
-    val eight = listOf(
-        segA(0), segB(1), segC(2), segD(3), segE(4), segF(5), segG(6)
-    )
+    val eight = listOf(segA, segB, segC, segD, segE, segF, segG)
 
     // Number 9: A, B, C, D, F, G
-    val nine = listOf(
-        segA(0), segB(1), segC(2), segD(3), segF(4), segG(5)
-    )
+    val nine = listOf(segA, segB, segC, segD, segF, segG)
 
     fun getPatternForNumber(number: Int): List<StickSegment> {
         return when (number) {

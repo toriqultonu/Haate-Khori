@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -144,8 +145,10 @@ fun StickBuilderScreen(
 
     // Currently dragging stick info
     var draggingStick by remember { mutableStateOf<TrayStick?>(null) }
-    var draggingPlacedStick by remember { mutableStateOf<PlacedStick?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // Game board bounds for position calculation
+    var boardBounds by remember { mutableStateOf(Rect.Zero) }
 
     // Reset function
     fun resetLevel() {
@@ -154,7 +157,6 @@ fun StickBuilderScreen(
         levelCompleted = false
         showCelebration = false
         draggingStick = null
-        draggingPlacedStick = null
         traySticks.clear()
         repeat(8) { index ->
             traySticks.add(TrayStick(
@@ -280,7 +282,10 @@ fun StickBuilderScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .onGloballyPositioned { coords ->
+                    boardBounds = coords.boundsInRoot()
+                },
             colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBE6)),
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -391,33 +396,62 @@ fun StickBuilderScreen(
                 dragOffset = offset
             },
             onDragEnd = { stick, offset, trayTop ->
-                // If dropped above tray, place on board
-                if (offset.y < trayTop) {
-                    // Mark stick as not in tray
-                    val index = traySticks.indexOfFirst { it.id == stick.id }
-                    if (index >= 0) {
-                        traySticks[index] = stick.copy(isInTray = false)
-                    }
-                    // Find matching segment
-                    val matchingSegments = targetPattern.filter { segment ->
+                // If dropped above tray (on board area), place on board
+                if (offset.y < trayTop && boardBounds.width > 0) {
+                    // Convert screen position to normalized board coordinates (0-1)
+                    // Account for the 32.dp padding inside the card
+                    val padding = 32f * 3f  // Approximate padding in pixels
+                    val boardContentWidth = boardBounds.width - padding * 2
+                    val boardContentHeight = boardBounds.height - padding * 2
+
+                    val normalizedX = (offset.x - boardBounds.left - padding) / boardContentWidth
+                    val normalizedY = (offset.y - boardBounds.top - padding) / boardContentHeight
+
+                    // Find the nearest segment that matches orientation
+                    var nearestSegment: StickSegment? = null
+                    var minDistance = Float.MAX_VALUE
+
+                    AllSevenSegments.allSegments.forEach { segment ->
                         val segIsHorizontal = abs(segment.endY - segment.startY) < abs(segment.endX - segment.startX)
-                        segIsHorizontal == stick.isHorizontal
+                        if (segIsHorizontal == stick.isHorizontal) {
+                            // Calculate segment center
+                            val segCenterX = (segment.startX + segment.endX) / 2
+                            val segCenterY = (segment.startY + segment.endY) / 2
+
+                            val distance = kotlin.math.sqrt(
+                                (normalizedX - segCenterX) * (normalizedX - segCenterX) +
+                                (normalizedY - segCenterY) * (normalizedY - segCenterY)
+                            )
+
+                            if (distance < minDistance) {
+                                minDistance = distance
+                                nearestSegment = segment
+                            }
+                        }
                     }
-                    if (matchingSegments.isNotEmpty()) {
-                        val targetSegment = matchingSegments.random()
+
+                    // Only place if close enough (threshold 0.3 in normalized coords)
+                    if (nearestSegment != null && minDistance < 0.35f) {
+                        // Mark stick as not in tray
+                        val index = traySticks.indexOfFirst { it.id == stick.id }
+                        if (index >= 0) {
+                            traySticks[index] = stick.copy(isInTray = false)
+                        }
+
                         placedSticks.add(
                             PlacedStick(
                                 id = System.currentTimeMillis().toInt(),
                                 colorIndex = stick.colorIndex,
-                                startX = targetSegment.startX,
-                                startY = targetSegment.startY,
-                                endX = targetSegment.endX,
-                                endY = targetSegment.endY,
-                                matchedSegmentId = targetSegment.id,
+                                startX = nearestSegment!!.startX,
+                                startY = nearestSegment!!.startY,
+                                endX = nearestSegment!!.endX,
+                                endY = nearestSegment!!.endY,
+                                matchedSegmentId = nearestSegment!!.id,
                                 isHorizontal = stick.isHorizontal
                             )
                         )
                     }
+                    // If not close to any segment, stick returns to tray (stays in tray)
                 }
                 // If dropped back on tray, stick remains in tray (no change needed)
                 draggingStick = null
@@ -742,14 +776,12 @@ private fun TrayStickItem(
     onDragEnd: (Offset) -> Unit
 ) {
     val color = stickColors[stick.colorIndex % stickColors.size]
-    var itemPosition by remember { mutableStateOf(Offset.Zero) }
-    var currentDragOffset by remember { mutableStateOf(Offset.Zero) }
+    var itemBounds by remember { mutableStateOf(Rect.Zero) }
 
     Box(
         modifier = Modifier
             .onGloballyPositioned { coords ->
-                val pos = coords.positionInRoot()
-                itemPosition = Offset(pos.x + coords.size.width / 2, pos.y + coords.size.height / 2)
+                itemBounds = coords.boundsInRoot()
             }
             .then(
                 if (stick.isHorizontal) {
@@ -769,31 +801,34 @@ private fun TrayStickItem(
                 )
             )
             .pointerInput(stick.id) {
+                var dragPosition = Offset.Zero
                 detectDragGestures(
-                    onDragStart = {
-                        currentDragOffset = itemPosition
-                        onDragStart(currentDragOffset)
+                    onDragStart = { startOffset ->
+                        // Calculate absolute position from item bounds + touch offset
+                        dragPosition = Offset(
+                            itemBounds.left + startOffset.x,
+                            itemBounds.top + startOffset.y
+                        )
+                        onDragStart(dragPosition)
                     },
                     onDragEnd = {
-                        onDragEnd(currentDragOffset)
-                        currentDragOffset = Offset.Zero
+                        onDragEnd(dragPosition)
                     },
                     onDragCancel = {
-                        onDragEnd(currentDragOffset)
-                        currentDragOffset = Offset.Zero
+                        onDragEnd(dragPosition)
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        currentDragOffset = Offset(
-                            currentDragOffset.x + dragAmount.x,
-                            currentDragOffset.y + dragAmount.y
+                        dragPosition = Offset(
+                            dragPosition.x + dragAmount.x,
+                            dragPosition.y + dragAmount.y
                         )
-                        onDrag(currentDragOffset)
+                        onDrag(dragPosition)
                     }
                 )
             }
             .graphicsLayer {
-                alpha = if (isDragging) 0f else 1f  // Hide when dragging (overlay shows it)
+                alpha = if (isDragging) 0f else 1f
             }
     )
 }
