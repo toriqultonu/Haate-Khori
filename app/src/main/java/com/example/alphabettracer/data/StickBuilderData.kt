@@ -12,122 +12,8 @@ val stickColors = listOf(
     Color(0xFFFF7043)  // Coral/Orange
 )
 
-/**
- * 7-Segment Display Layout:
- *
- *    ═══ A ═══
- *   ║         ║
- *   F         B
- *   ║         ║
- *    ═══ G ═══
- *   ║         ║
- *   E         C
- *   ║         ║
- *    ═══ D ═══
- *
- * All horizontal segments (A, G, D) are the same length
- * All vertical segments (B, C, E, F) are the same length
- */
-
-// The 7 segment positions
-enum class SegmentPosition {
-    A,  // Top horizontal
-    B,  // Top-right vertical
-    C,  // Bottom-right vertical
-    D,  // Bottom horizontal
-    E,  // Bottom-left vertical
-    F,  // Top-left vertical
-    G   // Middle horizontal
-}
-
-// Stick orientation - either horizontal or vertical (same size within each type)
-enum class StickOrientation {
-    HORIZONTAL,
-    VERTICAL
-}
-
-// A segment slot represents a position where a stick can be placed
-data class SegmentSlot(
-    val position: SegmentPosition,
-    val orientation: StickOrientation,
-    val centerX: Float,  // Center position normalized 0-1
-    val centerY: Float,
-    val isHorizontal: Boolean = orientation == StickOrientation.HORIZONTAL
-)
-
-// Define the 7 segment slots with their positions
-// Using a clean 7-segment layout where all sticks are uniform
-object SevenSegmentLayout {
-    // Layout dimensions (normalized 0-1)
-    private const val LEFT = 0.25f
-    private const val RIGHT = 0.75f
-    private const val TOP = 0.1f
-    private const val MIDDLE = 0.5f
-    private const val BOTTOM = 0.9f
-    private const val CENTER_X = 0.5f
-
-    // Stick length (normalized)
-    const val HORIZONTAL_LENGTH = 0.5f  // Length for horizontal sticks
-    const val VERTICAL_LENGTH = 0.4f    // Length for vertical sticks (half height)
-
-    val slots = listOf(
-        // A - Top horizontal
-        SegmentSlot(SegmentPosition.A, StickOrientation.HORIZONTAL, CENTER_X, TOP),
-        // B - Top-right vertical
-        SegmentSlot(SegmentPosition.B, StickOrientation.VERTICAL, RIGHT, (TOP + MIDDLE) / 2),
-        // C - Bottom-right vertical
-        SegmentSlot(SegmentPosition.C, StickOrientation.VERTICAL, RIGHT, (MIDDLE + BOTTOM) / 2),
-        // D - Bottom horizontal
-        SegmentSlot(SegmentPosition.D, StickOrientation.HORIZONTAL, CENTER_X, BOTTOM),
-        // E - Bottom-left vertical
-        SegmentSlot(SegmentPosition.E, StickOrientation.VERTICAL, LEFT, (MIDDLE + BOTTOM) / 2),
-        // F - Top-left vertical
-        SegmentSlot(SegmentPosition.F, StickOrientation.VERTICAL, LEFT, (TOP + MIDDLE) / 2),
-        // G - Middle horizontal
-        SegmentSlot(SegmentPosition.G, StickOrientation.HORIZONTAL, CENTER_X, MIDDLE)
-    )
-
-    fun getSlot(position: SegmentPosition): SegmentSlot {
-        return slots.first { it.position == position }
-    }
-}
-
-// Which segments are ON for each digit (0-9)
-object DigitSegments {
-    private val digitPatterns = mapOf(
-        0 to setOf(SegmentPosition.A, SegmentPosition.B, SegmentPosition.C, SegmentPosition.D, SegmentPosition.E, SegmentPosition.F),
-        1 to setOf(SegmentPosition.B, SegmentPosition.C),
-        2 to setOf(SegmentPosition.A, SegmentPosition.B, SegmentPosition.G, SegmentPosition.E, SegmentPosition.D),
-        3 to setOf(SegmentPosition.A, SegmentPosition.B, SegmentPosition.G, SegmentPosition.C, SegmentPosition.D),
-        4 to setOf(SegmentPosition.F, SegmentPosition.G, SegmentPosition.B, SegmentPosition.C),
-        5 to setOf(SegmentPosition.A, SegmentPosition.F, SegmentPosition.G, SegmentPosition.C, SegmentPosition.D),
-        6 to setOf(SegmentPosition.A, SegmentPosition.F, SegmentPosition.G, SegmentPosition.E, SegmentPosition.D, SegmentPosition.C),
-        7 to setOf(SegmentPosition.A, SegmentPosition.B, SegmentPosition.C),
-        8 to setOf(SegmentPosition.A, SegmentPosition.B, SegmentPosition.C, SegmentPosition.D, SegmentPosition.E, SegmentPosition.F, SegmentPosition.G),
-        9 to setOf(SegmentPosition.A, SegmentPosition.B, SegmentPosition.C, SegmentPosition.D, SegmentPosition.F, SegmentPosition.G)
-    )
-
-    fun getSegmentsForDigit(digit: Int): Set<SegmentPosition> {
-        return digitPatterns[digit] ?: emptySet()
-    }
-
-    fun getStickCountForDigit(digit: Int): Int {
-        return getSegmentsForDigit(digit).size
-    }
-
-    // Recognize what digit is formed by the given segments
-    // Returns null if no valid digit matches
-    fun recognizeDigit(activeSegments: Set<SegmentPosition>): Int? {
-        for ((digit, pattern) in digitPatterns) {
-            if (activeSegments == pattern) {
-                return digit
-            }
-        }
-        return null
-    }
-}
-
-// Legacy support - maps old StickSegment to new format
+// Represents a single stick segment for building numbers
+// Coordinates are in a normalized 0-1 range (will be scaled to actual size)
 data class StickSegment(
     val startX: Float,
     val startY: Float,
@@ -136,40 +22,121 @@ data class StickSegment(
     val id: Int = 0
 )
 
-// Convert 7-segment patterns to old StickSegment format for compatibility
+/**
+ * 7-Segment Display Layout:
+ *
+ *     ═══ A ═══
+ *    ║         ║
+ *    F         B
+ *    ║         ║
+ *     ═══ G ═══
+ *    ║         ║
+ *    E         C
+ *    ║         ║
+ *     ═══ D ═══
+ *
+ * Segments:
+ * A = Top horizontal
+ * B = Top-right vertical
+ * C = Bottom-right vertical
+ * D = Bottom horizontal
+ * E = Bottom-left vertical
+ * F = Top-left vertical
+ * G = Middle horizontal
+ */
 object NumberStickPatterns {
 
-    private fun segmentToStickSegment(slot: SegmentSlot, id: Int): StickSegment {
-        val halfLength = if (slot.isHorizontal) {
-            SevenSegmentLayout.HORIZONTAL_LENGTH / 2
-        } else {
-            SevenSegmentLayout.VERTICAL_LENGTH / 2
-        }
+    // Fixed positions for 7-segment display
+    private const val LEFT = 0.25f
+    private const val RIGHT = 0.75f
+    private const val TOP = 0.08f
+    private const val MIDDLE = 0.48f
+    private const val BOTTOM = 0.88f
 
-        return if (slot.isHorizontal) {
-            StickSegment(
-                startX = slot.centerX - halfLength,
-                startY = slot.centerY,
-                endX = slot.centerX + halfLength,
-                endY = slot.centerY,
-                id = id
-            )
-        } else {
-            StickSegment(
-                startX = slot.centerX,
-                startY = slot.centerY - halfLength,
-                endX = slot.centerX,
-                endY = slot.centerY + halfLength,
-                id = id
-            )
-        }
-    }
+    // Segment A - Top horizontal
+    private fun segA(id: Int) = StickSegment(LEFT, TOP, RIGHT, TOP, id)
+
+    // Segment B - Top-right vertical
+    private fun segB(id: Int) = StickSegment(RIGHT, TOP, RIGHT, MIDDLE, id)
+
+    // Segment C - Bottom-right vertical
+    private fun segC(id: Int) = StickSegment(RIGHT, MIDDLE, RIGHT, BOTTOM, id)
+
+    // Segment D - Bottom horizontal
+    private fun segD(id: Int) = StickSegment(LEFT, BOTTOM, RIGHT, BOTTOM, id)
+
+    // Segment E - Bottom-left vertical
+    private fun segE(id: Int) = StickSegment(LEFT, MIDDLE, LEFT, BOTTOM, id)
+
+    // Segment F - Top-left vertical
+    private fun segF(id: Int) = StickSegment(LEFT, TOP, LEFT, MIDDLE, id)
+
+    // Segment G - Middle horizontal
+    private fun segG(id: Int) = StickSegment(LEFT, MIDDLE, RIGHT, MIDDLE, id)
+
+    // Number 0: A, B, C, D, E, F (all except G)
+    val zero = listOf(
+        segA(0), segB(1), segC(2), segD(3), segE(4), segF(5)
+    )
+
+    // Number 1: B, C (right side only)
+    val one = listOf(
+        segB(0), segC(1)
+    )
+
+    // Number 2: A, B, G, E, D
+    val two = listOf(
+        segA(0), segB(1), segG(2), segE(3), segD(4)
+    )
+
+    // Number 3: A, B, G, C, D
+    val three = listOf(
+        segA(0), segB(1), segG(2), segC(3), segD(4)
+    )
+
+    // Number 4: F, G, B, C
+    val four = listOf(
+        segF(0), segG(1), segB(2), segC(3)
+    )
+
+    // Number 5: A, F, G, C, D
+    val five = listOf(
+        segA(0), segF(1), segG(2), segC(3), segD(4)
+    )
+
+    // Number 6: A, F, G, E, D, C
+    val six = listOf(
+        segA(0), segF(1), segG(2), segE(3), segD(4), segC(5)
+    )
+
+    // Number 7: A, B, C
+    val seven = listOf(
+        segA(0), segB(1), segC(2)
+    )
+
+    // Number 8: All segments A, B, C, D, E, F, G
+    val eight = listOf(
+        segA(0), segB(1), segC(2), segD(3), segE(4), segF(5), segG(6)
+    )
+
+    // Number 9: A, B, C, D, F, G
+    val nine = listOf(
+        segA(0), segB(1), segC(2), segD(3), segF(4), segG(5)
+    )
 
     fun getPatternForNumber(number: Int): List<StickSegment> {
-        val segments = DigitSegments.getSegmentsForDigit(number)
-        return segments.mapIndexed { index, position ->
-            val slot = SevenSegmentLayout.getSlot(position)
-            segmentToStickSegment(slot, index)
+        return when (number) {
+            0 -> zero
+            1 -> one
+            2 -> two
+            3 -> three
+            4 -> four
+            5 -> five
+            6 -> six
+            7 -> seven
+            8 -> eight
+            9 -> nine
+            else -> one
         }
     }
 }
