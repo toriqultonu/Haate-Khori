@@ -1,12 +1,7 @@
 package com.example.alphabettracer.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -128,7 +123,6 @@ fun StickBuilderScreen(
     val placedSticks = remember { mutableStateListOf<PlacedStick>() }
     var showHint by remember { mutableStateOf(false) }
     var levelCompleted by remember { mutableStateOf(false) }
-    var showCelebration by remember { mutableStateOf(false) }
 
     // Tray sticks - 8 sticks (4 horizontal, 4 vertical)
     val traySticks = remember { mutableStateListOf<TrayStick>() }
@@ -155,7 +149,6 @@ fun StickBuilderScreen(
         placedSticks.clear()
         showHint = false
         levelCompleted = false
-        showCelebration = false
         draggingStick = null
         traySticks.clear()
         repeat(8) { index ->
@@ -168,17 +161,16 @@ fun StickBuilderScreen(
         }
     }
 
-    // Check completion
+    // Check completion - verify EXACT segments match the target pattern
     fun checkCompletion(): Boolean {
-        if (placedSticks.size < targetPattern.size) return false
+        // Get the segment IDs that the target number requires
+        val requiredSegmentIds = targetPattern.map { it.id }.toSet()
 
-        val matchedSegments = mutableSetOf<Int>()
-        for (placed in placedSticks) {
-            if (placed.matchedSegmentId >= 0) {
-                matchedSegments.add(placed.matchedSegmentId)
-            }
-        }
-        return matchedSegments.size >= targetPattern.size
+        // Get the segment IDs where user placed sticks
+        val placedSegmentIds = placedSticks.map { it.matchedSegmentId }.toSet()
+
+        // Check if placed segments exactly match required segments
+        return placedSegmentIds == requiredSegmentIds
     }
 
     // Navigate to next level
@@ -360,24 +352,40 @@ fun StickBuilderScreen(
                     )
                 }
 
-                // Done button (bottom-right)
-                Button(
-                    onClick = {
-                        if (checkCompletion()) {
-                            levelCompleted = true
-                            showCelebration = true
-                            StickBuilderStorage.saveChallengeCompleted(context, challenge.id)
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("DONE!", fontWeight = FontWeight.Bold)
+                // Done button (bottom-right) or Success indicator
+                if (levelCompleted) {
+                    // Show success indicator
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .background(Color(0xFF4CAF50), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            "✓ Correct!",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (checkCompletion()) {
+                                levelCompleted = true
+                                StickBuilderStorage.saveChallengeCompleted(context, challenge.id)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("CHECK", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -511,21 +519,6 @@ fun StickBuilderScreen(
             )
         }
 
-        // Celebration overlay
-        AnimatedVisibility(
-            visible = showCelebration,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut()
-        ) {
-            CelebrationOverlay(
-                onDismiss = { showCelebration = false },
-                onNextLevel = {
-                    showCelebration = false
-                    goToNextLevel()
-                },
-                isLastLevel = currentLevelId >= StickBuilderLevels.allChallenges.size
-            )
-        }
     }
 }
 
@@ -871,83 +864,3 @@ private fun DraggingStickOverlay(
     }
 }
 
-@Composable
-private fun CelebrationOverlay(
-    onDismiss: () -> Unit,
-    onNextLevel: () -> Unit,
-    isLastLevel: Boolean
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .padding(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("🎉", fontSize = 64.sp)
-
-                Spacer(Modifier.height(16.dp))
-
-                Text(
-                    "Awesome!",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF4CAF50)
-                )
-
-                Text(
-                    "You built the number perfectly!",
-                    fontSize = 16.sp,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(Modifier.height(24.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9800)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Stay Here")
-                    }
-
-                    if (!isLastLevel) {
-                        Button(
-                            onClick = onNextLevel,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4CAF50)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Next Level")
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Next"
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
