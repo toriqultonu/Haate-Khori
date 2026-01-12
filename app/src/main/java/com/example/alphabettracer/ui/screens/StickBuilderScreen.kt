@@ -16,18 +16,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -51,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -59,17 +54,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.data.ChallengeType
@@ -79,7 +71,6 @@ import com.example.alphabettracer.data.StickBuilderStorage
 import com.example.alphabettracer.data.StickSegment
 import com.example.alphabettracer.data.stickColors
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 // Represents a stick placed on the canvas
 data class PlacedStick(
@@ -219,8 +210,7 @@ fun StickBuilderScreen(
                         )
                     )
                 )
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
         // Header with title and sun mascot
         Row(
@@ -284,13 +274,13 @@ fun StickBuilderScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
 
         // Main game area
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f),
+                .weight(1f),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBE6)),
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -392,14 +382,10 @@ fun StickBuilderScreen(
         // Stick tray
         StickTray(
             traySticks = traySticks.filter { it.isInTray },
+            draggingStickId = draggingStick?.id,
             onDragStart = { stick, offset ->
                 draggingStick = stick
                 dragOffset = offset
-                // Mark stick as not in tray
-                val index = traySticks.indexOfFirst { it.id == stick.id }
-                if (index >= 0) {
-                    traySticks[index] = stick.copy(isInTray = false)
-                }
             },
             onDrag = { offset ->
                 dragOffset = offset
@@ -407,6 +393,11 @@ fun StickBuilderScreen(
             onDragEnd = { stick, offset, trayTop ->
                 // If dropped above tray, place on board
                 if (offset.y < trayTop) {
+                    // Mark stick as not in tray
+                    val index = traySticks.indexOfFirst { it.id == stick.id }
+                    if (index >= 0) {
+                        traySticks[index] = stick.copy(isInTray = false)
+                    }
                     // Find matching segment
                     val matchingSegments = targetPattern.filter { segment ->
                         val segIsHorizontal = abs(segment.endY - segment.startY) < abs(segment.endX - segment.startX)
@@ -427,18 +418,13 @@ fun StickBuilderScreen(
                             )
                         )
                     }
-                } else {
-                    // Return to tray
-                    val index = traySticks.indexOfFirst { it.id == stick.id }
-                    if (index >= 0) {
-                        traySticks[index] = stick.copy(isInTray = true)
-                    }
                 }
+                // If dropped back on tray, stick remains in tray (no change needed)
                 draggingStick = null
             }
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
 
         // Navigation buttons
         Row(
@@ -481,8 +467,6 @@ fun StickBuilderScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next")
             }
         }
-
-            Spacer(Modifier.height(32.dp))
         }
 
         // Dragging stick overlay (renders on top of everything)
@@ -689,6 +673,7 @@ private fun PlacedSticksCanvas(
 @Composable
 private fun StickTray(
     traySticks: List<TrayStick>,
+    draggingStickId: Int?,
     onDragStart: (TrayStick, Offset) -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: (TrayStick, Offset, Float) -> Unit
@@ -727,6 +712,7 @@ private fun StickTray(
                     traySticks.forEach { stick ->
                         TrayStickItem(
                             stick = stick,
+                            isDragging = stick.id == draggingStickId,
                             onDragStart = { offset -> onDragStart(stick, offset) },
                             onDrag = onDrag,
                             onDragEnd = { offset -> onDragEnd(stick, offset, trayTopY) }
@@ -750,6 +736,7 @@ private fun StickTray(
 @Composable
 private fun TrayStickItem(
     stick: TrayStick,
+    isDragging: Boolean,
     onDragStart: (Offset) -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit
@@ -757,7 +744,6 @@ private fun TrayStickItem(
     val color = stickColors[stick.colorIndex % stickColors.size]
     var itemPosition by remember { mutableStateOf(Offset.Zero) }
     var currentDragOffset by remember { mutableStateOf(Offset.Zero) }
-    var isDragging by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -784,18 +770,16 @@ private fun TrayStickItem(
             )
             .pointerInput(stick.id) {
                 detectDragGestures(
-                    onDragStart = { startOffset ->
-                        isDragging = true
+                    onDragStart = {
                         currentDragOffset = itemPosition
                         onDragStart(currentDragOffset)
                     },
                     onDragEnd = {
-                        isDragging = false
                         onDragEnd(currentDragOffset)
                         currentDragOffset = Offset.Zero
                     },
                     onDragCancel = {
-                        isDragging = false
+                        onDragEnd(currentDragOffset)
                         currentDragOffset = Offset.Zero
                     },
                     onDrag = { change, dragAmount ->
