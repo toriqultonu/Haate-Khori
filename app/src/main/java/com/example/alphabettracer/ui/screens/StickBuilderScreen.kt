@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -60,6 +62,9 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +78,7 @@ import com.example.alphabettracer.data.StickBuilderLevels
 import com.example.alphabettracer.data.StickBuilderStorage
 import com.example.alphabettracer.data.StickSegment
 import com.example.alphabettracer.data.stickColors
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // Represents a stick placed on the canvas
@@ -83,17 +89,36 @@ data class PlacedStick(
     val startY: Float,
     val endX: Float,
     val endY: Float,
-    val matchedSegmentId: Int = -1
+    val matchedSegmentId: Int = -1,
+    val isHorizontal: Boolean = false
 )
 
 // Represents a draggable stick in the tray
 data class TrayStick(
     val id: Int,
     val colorIndex: Int,
-    var offsetX: Float = 0f,
-    var offsetY: Float = 0f,
-    var isDragging: Boolean = false
+    val isHorizontal: Boolean = false,
+    var isInTray: Boolean = true
 )
+
+// All 7 segment positions for ghost display
+object AllSevenSegments {
+    private const val LEFT = 0.25f
+    private const val RIGHT = 0.75f
+    private const val TOP = 0.08f
+    private const val MIDDLE = 0.48f
+    private const val BOTTOM = 0.88f
+
+    val allSegments = listOf(
+        StickSegment(LEFT, TOP, RIGHT, TOP, 0),           // A - Top horizontal
+        StickSegment(RIGHT, TOP, RIGHT, MIDDLE, 1),       // B - Top-right vertical
+        StickSegment(RIGHT, MIDDLE, RIGHT, BOTTOM, 2),    // C - Bottom-right vertical
+        StickSegment(LEFT, BOTTOM, RIGHT, BOTTOM, 3),     // D - Bottom horizontal
+        StickSegment(LEFT, MIDDLE, LEFT, BOTTOM, 4),      // E - Bottom-left vertical
+        StickSegment(LEFT, TOP, LEFT, MIDDLE, 5),         // F - Top-left vertical
+        StickSegment(LEFT, MIDDLE, RIGHT, MIDDLE, 6)      // G - Middle horizontal
+    )
+}
 
 @Composable
 fun StickBuilderScreen(
@@ -113,13 +138,23 @@ fun StickBuilderScreen(
     var levelCompleted by remember { mutableStateOf(false) }
     var showCelebration by remember { mutableStateOf(false) }
 
-    // Tray sticks - provide enough for all segments (max 7 for digit 8)
+    // Tray sticks - 8 sticks (4 horizontal, 4 vertical)
     val traySticks = remember { mutableStateListOf<TrayStick>() }
     if (traySticks.isEmpty()) {
         repeat(8) { index ->
-            traySticks.add(TrayStick(id = index, colorIndex = index % stickColors.size))
+            traySticks.add(TrayStick(
+                id = index,
+                colorIndex = index % stickColors.size,
+                isHorizontal = index % 2 == 0,
+                isInTray = true
+            ))
         }
     }
+
+    // Currently dragging stick info
+    var draggingStick by remember { mutableStateOf<TrayStick?>(null) }
+    var draggingPlacedStick by remember { mutableStateOf<PlacedStick?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
     // Reset function
     fun resetLevel() {
@@ -127,9 +162,16 @@ fun StickBuilderScreen(
         showHint = false
         levelCompleted = false
         showCelebration = false
+        draggingStick = null
+        draggingPlacedStick = null
         traySticks.clear()
         repeat(8) { index ->
-            traySticks.add(TrayStick(id = index, colorIndex = index % stickColors.size))
+            traySticks.add(TrayStick(
+                id = index,
+                colorIndex = index % stickColors.size,
+                isHorizontal = index % 2 == 0,
+                isInTray = true
+            ))
         }
     }
 
@@ -164,21 +206,22 @@ fun StickBuilderScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFFFFF8E1),
-                        Color(0xFFE3F2FD),
-                        Color(0xFFF3E5F5)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFFFF8E1),
+                            Color(0xFFE3F2FD),
+                            Color(0xFFF3E5F5)
+                        )
                     )
                 )
-            )
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
         // Header with title and sun mascot
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -256,9 +299,10 @@ fun StickBuilderScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // Target number outline (dashed)
-                NumberOutlineCanvas(
-                    pattern = targetPattern,
+                // All 7 segments as ghost outline + hint highlighting
+                SevenSegmentGhostCanvas(
+                    allSegments = AllSevenSegments.allSegments,
+                    targetPattern = targetPattern,
                     showHint = showHint,
                     modifier = Modifier
                         .fillMaxSize()
@@ -268,6 +312,17 @@ fun StickBuilderScreen(
                 // Placed sticks
                 PlacedSticksCanvas(
                     sticks = placedSticks,
+                    onStickTap = { stick ->
+                        // Return stick to tray
+                        placedSticks.remove(stick)
+                        // Find a tray stick with same orientation and mark as in tray
+                        val trayStickIndex = traySticks.indexOfFirst {
+                            !it.isInTray && it.isHorizontal == stick.isHorizontal
+                        }
+                        if (trayStickIndex >= 0) {
+                            traySticks[trayStickIndex] = traySticks[trayStickIndex].copy(isInTray = true)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(32.dp)
@@ -298,7 +353,7 @@ fun StickBuilderScreen(
                         .align(Alignment.BottomStart)
                         .padding(8.dp)
                         .background(
-                            color = Color(0xFF4CAF50),
+                            color = Color(0xFFFF5722),
                             shape = CircleShape
                         )
                         .size(48.dp)
@@ -336,11 +391,50 @@ fun StickBuilderScreen(
 
         // Stick tray
         StickTray(
-            traySticks = traySticks,
-            targetPattern = targetPattern,
-            placedSticks = placedSticks,
-            onStickPlaced = { placedStick ->
-                placedSticks.add(placedStick)
+            traySticks = traySticks.filter { it.isInTray },
+            onDragStart = { stick, offset ->
+                draggingStick = stick
+                dragOffset = offset
+                // Mark stick as not in tray
+                val index = traySticks.indexOfFirst { it.id == stick.id }
+                if (index >= 0) {
+                    traySticks[index] = stick.copy(isInTray = false)
+                }
+            },
+            onDrag = { offset ->
+                dragOffset = offset
+            },
+            onDragEnd = { stick, offset, trayTop ->
+                // If dropped above tray, place on board
+                if (offset.y < trayTop) {
+                    // Find matching segment
+                    val matchingSegments = targetPattern.filter { segment ->
+                        val segIsHorizontal = abs(segment.endY - segment.startY) < abs(segment.endX - segment.startX)
+                        segIsHorizontal == stick.isHorizontal
+                    }
+                    if (matchingSegments.isNotEmpty()) {
+                        val targetSegment = matchingSegments.random()
+                        placedSticks.add(
+                            PlacedStick(
+                                id = System.currentTimeMillis().toInt(),
+                                colorIndex = stick.colorIndex,
+                                startX = targetSegment.startX,
+                                startY = targetSegment.startY,
+                                endX = targetSegment.endX,
+                                endY = targetSegment.endY,
+                                matchedSegmentId = targetSegment.id,
+                                isHorizontal = stick.isHorizontal
+                            )
+                        )
+                    }
+                } else {
+                    // Return to tray
+                    val index = traySticks.indexOfFirst { it.id == stick.id }
+                    if (index >= 0) {
+                        traySticks[index] = stick.copy(isInTray = true)
+                    }
+                }
+                draggingStick = null
             }
         )
 
@@ -388,23 +482,32 @@ fun StickBuilderScreen(
             }
         }
 
-        Spacer(Modifier.height(32.dp))
-    }
+            Spacer(Modifier.height(32.dp))
+        }
 
-    // Celebration overlay
-    AnimatedVisibility(
-        visible = showCelebration,
-        enter = fadeIn() + scaleIn(),
-        exit = fadeOut() + scaleOut()
-    ) {
-        CelebrationOverlay(
-            onDismiss = { showCelebration = false },
-            onNextLevel = {
-                showCelebration = false
-                goToNextLevel()
-            },
-            isLastLevel = currentLevelId >= StickBuilderLevels.allChallenges.size
-        )
+        // Dragging stick overlay (renders on top of everything)
+        draggingStick?.let { stick ->
+            DraggingStickOverlay(
+                stick = stick,
+                offset = dragOffset
+            )
+        }
+
+        // Celebration overlay
+        AnimatedVisibility(
+            visible = showCelebration,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut()
+        ) {
+            CelebrationOverlay(
+                onDismiss = { showCelebration = false },
+                onNextLevel = {
+                    showCelebration = false
+                    goToNextLevel()
+                },
+                isLastLevel = currentLevelId >= StickBuilderLevels.allChallenges.size
+            )
+        }
     }
 }
 
@@ -428,24 +531,29 @@ private fun SunMascot() {
 }
 
 @Composable
-private fun NumberOutlineCanvas(
-    pattern: List<StickSegment>,
+private fun SevenSegmentGhostCanvas(
+    allSegments: List<StickSegment>,
+    targetPattern: List<StickSegment>,
     showHint: Boolean,
     modifier: Modifier = Modifier
 ) {
+    // Get target segment IDs for hint highlighting
+    val targetSegmentIds = targetPattern.map { it.id }.toSet()
+
     Canvas(modifier = modifier) {
         // Segment thickness
         val segmentThickness = size.width * 0.12f
         val cornerRadius = segmentThickness / 2
 
-        pattern.forEach { segment ->
+        // Draw all 7 segments as ghost outline
+        allSegments.forEach { segment ->
             val startX = segment.startX * size.width
             val startY = segment.startY * size.height
             val endX = segment.endX * size.width
             val endY = segment.endY * size.height
 
             // Determine if horizontal or vertical segment
-            val isHorizontal = kotlin.math.abs(endY - startY) < kotlin.math.abs(endX - startX)
+            val isHorizontal = abs(endY - startY) < abs(endX - startX)
 
             val rectLeft: Float
             val rectTop: Float
@@ -453,36 +561,34 @@ private fun NumberOutlineCanvas(
             val rectHeight: Float
 
             if (isHorizontal) {
-                // Horizontal segment
                 rectLeft = minOf(startX, endX)
                 rectTop = startY - segmentThickness / 2
-                rectWidth = kotlin.math.abs(endX - startX)
+                rectWidth = abs(endX - startX)
                 rectHeight = segmentThickness
             } else {
-                // Vertical segment
                 rectLeft = startX - segmentThickness / 2
                 rectTop = minOf(startY, endY)
                 rectWidth = segmentThickness
-                rectHeight = kotlin.math.abs(endY - startY)
+                rectHeight = abs(endY - startY)
             }
 
-            // Draw ghost segment outline (dashed border)
+            // Draw ghost segment outline (dashed border) for ALL segments
             drawRoundRect(
-                color = Color.Gray.copy(alpha = 0.3f),
+                color = Color.Gray.copy(alpha = 0.35f),
                 topLeft = Offset(rectLeft, rectTop),
                 size = Size(rectWidth, rectHeight),
                 cornerRadius = CornerRadius(cornerRadius, cornerRadius),
                 style = Stroke(
                     width = 3f,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
                 )
             )
 
-            // Draw hint fill if enabled
-            if (showHint) {
-                val hintColor = stickColors[segment.id % stickColors.size]
+            // Draw hint fill ONLY for target segments when hint is enabled
+            if (showHint && segment.id in targetSegmentIds) {
+                val hintColor = Color(0xFF4CAF50) // Green for answer
                 drawRoundRect(
-                    color = hintColor.copy(alpha = 0.4f),
+                    color = hintColor.copy(alpha = 0.5f),
                     topLeft = Offset(rectLeft, rectTop),
                     size = Size(rectWidth, rectHeight),
                     cornerRadius = CornerRadius(cornerRadius, cornerRadius)
@@ -495,9 +601,40 @@ private fun NumberOutlineCanvas(
 @Composable
 private fun PlacedSticksCanvas(
     sticks: List<PlacedStick>,
+    onStickTap: (PlacedStick) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Canvas(modifier = modifier) {
+    var canvasSize by remember { mutableStateOf(Size.Zero) }
+
+    Canvas(
+        modifier = modifier
+            .pointerInput(sticks) {
+                detectTapGestures { tapOffset ->
+                    // Find which stick was tapped
+                    val segmentThickness = canvasSize.width * 0.12f
+
+                    sticks.forEach { stick ->
+                        val startX = stick.startX * canvasSize.width
+                        val startY = stick.startY * canvasSize.height
+                        val endX = stick.endX * canvasSize.width
+                        val endY = stick.endY * canvasSize.height
+                        val isHorizontal = abs(endY - startY) < abs(endX - startX)
+
+                        val rectLeft = if (isHorizontal) minOf(startX, endX) else startX - segmentThickness / 2
+                        val rectTop = if (isHorizontal) startY - segmentThickness / 2 else minOf(startY, endY)
+                        val rectRight = if (isHorizontal) maxOf(startX, endX) else startX + segmentThickness / 2
+                        val rectBottom = if (isHorizontal) startY + segmentThickness / 2 else maxOf(startY, endY)
+
+                        if (tapOffset.x in rectLeft..rectRight && tapOffset.y in rectTop..rectBottom) {
+                            onStickTap(stick)
+                            return@detectTapGestures
+                        }
+                    }
+                }
+            }
+    ) {
+        canvasSize = size
+
         // Same segment thickness as outline
         val segmentThickness = size.width * 0.12f
         val cornerRadius = segmentThickness / 2
@@ -511,7 +648,7 @@ private fun PlacedSticksCanvas(
             val endY = stick.endY * size.height
 
             // Determine if horizontal or vertical segment
-            val isHorizontal = kotlin.math.abs(endY - startY) < kotlin.math.abs(endX - startX)
+            val isHorizontal = abs(endY - startY) < abs(endX - startX)
 
             val rectLeft: Float
             val rectTop: Float
@@ -521,13 +658,13 @@ private fun PlacedSticksCanvas(
             if (isHorizontal) {
                 rectLeft = minOf(startX, endX)
                 rectTop = startY - segmentThickness / 2
-                rectWidth = kotlin.math.abs(endX - startX)
+                rectWidth = abs(endX - startX)
                 rectHeight = segmentThickness
             } else {
                 rectLeft = startX - segmentThickness / 2
                 rectTop = minOf(startY, endY)
                 rectWidth = segmentThickness
-                rectHeight = kotlin.math.abs(endY - startY)
+                rectHeight = abs(endY - startY)
             }
 
             // Draw filled segment
@@ -552,14 +689,18 @@ private fun PlacedSticksCanvas(
 @Composable
 private fun StickTray(
     traySticks: List<TrayStick>,
-    targetPattern: List<StickSegment>,
-    placedSticks: MutableList<PlacedStick>,
-    onStickPlaced: (PlacedStick) -> Unit
+    onDragStart: (TrayStick, Offset) -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: (TrayStick, Offset, Float) -> Unit
 ) {
-    val density = LocalDensity.current
+    var trayTopY by remember { mutableFloatStateOf(0f) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coords ->
+                trayTopY = coords.boundsInRoot().top
+            },
         colors = CardDefaults.cardColors(containerColor = Color(0xFFD7CCC8)),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -572,8 +713,7 @@ private fun StickTray(
         ) {
             // Inner tray with sticks
             Card(
-                modifier = Modifier
-                    .fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFBCAAA4)),
                 shape = RoundedCornerShape(8.dp)
             ) {
@@ -584,13 +724,21 @@ private fun StickTray(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    traySticks.forEachIndexed { index, stick ->
-                        DraggableStick(
+                    traySticks.forEach { stick ->
+                        TrayStickItem(
                             stick = stick,
-                            targetPattern = targetPattern,
-                            onStickPlaced = { placedStick ->
-                                onStickPlaced(placedStick)
-                            }
+                            onDragStart = { offset -> onDragStart(stick, offset) },
+                            onDrag = onDrag,
+                            onDragEnd = { offset -> onDragEnd(stick, offset, trayTopY) }
+                        )
+                    }
+
+                    // Show placeholder if tray is empty
+                    if (traySticks.isEmpty()) {
+                        Text(
+                            "Tap sticks on board to return",
+                            color = Color(0xFF5D4037),
+                            fontSize = 12.sp
                         )
                     }
                 }
@@ -600,31 +748,25 @@ private fun StickTray(
 }
 
 @Composable
-private fun DraggableStick(
+private fun TrayStickItem(
     stick: TrayStick,
-    targetPattern: List<StickSegment>,
-    onStickPlaced: (PlacedStick) -> Unit
+    onDragStart: (Offset) -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: (Offset) -> Unit
 ) {
     val color = stickColors[stick.colorIndex % stickColors.size]
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
+    var itemPosition by remember { mutableStateOf(Offset.Zero) }
+    var currentDragOffset by remember { mutableStateOf(Offset.Zero) }
     var isDragging by remember { mutableStateOf(false) }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isDragging) 1.2f else 1f,
-        animationSpec = spring(),
-        label = "stickScale"
-    )
-
-    // Alternate between horizontal and vertical sticks in tray
-    val isHorizontalStick = stick.id % 2 == 0
 
     Box(
         modifier = Modifier
-            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-            .scale(scale)
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInRoot()
+                itemPosition = Offset(pos.x + coords.size.width / 2, pos.y + coords.size.height / 2)
+            }
             .then(
-                if (isHorizontalStick) {
+                if (stick.isHorizontal) {
                     Modifier.width(50.dp).height(16.dp)
                 } else {
                     Modifier.width(16.dp).height(50.dp)
@@ -642,48 +784,72 @@ private fun DraggableStick(
             )
             .pointerInput(stick.id) {
                 detectDragGestures(
-                    onDragStart = {
+                    onDragStart = { startOffset ->
                         isDragging = true
+                        currentDragOffset = itemPosition
+                        onDragStart(currentDragOffset)
                     },
                     onDragEnd = {
                         isDragging = false
-                        // Find unmatched segments that match this stick orientation
-                        val unmatchedSegments = targetPattern.filter { segment ->
-                            val segIsHorizontal = kotlin.math.abs(segment.endY - segment.startY) <
-                                kotlin.math.abs(segment.endX - segment.startX)
-                            segIsHorizontal == isHorizontalStick
-                        }
-                        if (unmatchedSegments.isNotEmpty()) {
-                            val targetSegment = unmatchedSegments.random()
-                            onStickPlaced(
-                                PlacedStick(
-                                    id = System.currentTimeMillis().toInt(),
-                                    colorIndex = stick.colorIndex,
-                                    startX = targetSegment.startX,
-                                    startY = targetSegment.startY,
-                                    endX = targetSegment.endX,
-                                    endY = targetSegment.endY,
-                                    matchedSegmentId = targetSegment.id
-                                )
-                            )
-                        }
-                        // Reset position
-                        offsetX = 0f
-                        offsetY = 0f
+                        onDragEnd(currentDragOffset)
+                        currentDragOffset = Offset.Zero
                     },
                     onDragCancel = {
                         isDragging = false
-                        offsetX = 0f
-                        offsetY = 0f
+                        currentDragOffset = Offset.Zero
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        offsetX += dragAmount.x
-                        offsetY += dragAmount.y
+                        currentDragOffset = Offset(
+                            currentDragOffset.x + dragAmount.x,
+                            currentDragOffset.y + dragAmount.y
+                        )
+                        onDrag(currentDragOffset)
                     }
                 )
             }
+            .graphicsLayer {
+                alpha = if (isDragging) 0f else 1f  // Hide when dragging (overlay shows it)
+            }
     )
+}
+
+@Composable
+private fun DraggingStickOverlay(
+    stick: TrayStick,
+    offset: Offset
+) {
+    val color = stickColors[stick.colorIndex % stickColors.size]
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val stickWidth = if (stick.isHorizontal) 140f else 45f
+        val stickHeight = if (stick.isHorizontal) 45f else 140f
+        val cornerRadius = 22f
+
+        // Shadow
+        drawRoundRect(
+            color = Color.Black.copy(alpha = 0.3f),
+            topLeft = Offset(offset.x - stickWidth / 2 + 4, offset.y - stickHeight / 2 + 4),
+            size = Size(stickWidth, stickHeight),
+            cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+        )
+
+        // Main stick
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(offset.x - stickWidth / 2, offset.y - stickHeight / 2),
+            size = Size(stickWidth, stickHeight),
+            cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+        )
+
+        // Highlight
+        drawRoundRect(
+            color = color.copy(alpha = 0.7f),
+            topLeft = Offset(offset.x - stickWidth / 2 + 4, offset.y - stickHeight / 2 + 4),
+            size = Size(stickWidth - 8, stickHeight - 8),
+            cornerRadius = CornerRadius(cornerRadius - 2, cornerRadius - 2)
+        )
+    }
 }
 
 @Composable
