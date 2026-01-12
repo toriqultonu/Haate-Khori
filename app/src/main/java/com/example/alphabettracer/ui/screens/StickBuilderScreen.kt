@@ -140,9 +140,52 @@ fun StickBuilderScreen(
     // Currently dragging stick info
     var draggingStick by remember { mutableStateOf<TrayStick?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var hoveredSegmentId by remember { mutableIntStateOf(-1) }
 
     // Game board bounds for position calculation
     var boardBounds by remember { mutableStateOf(Rect.Zero) }
+
+    // Helper function to find segment being hovered during drag
+    fun findHoveredSegment(offset: Offset, stick: TrayStick): Int {
+        if (boardBounds.width <= 0) return -1
+
+        val paddingPx = 32f * context.resources.displayMetrics.density
+        val boardContentWidth = boardBounds.width - paddingPx * 2
+        val boardContentHeight = boardBounds.height - paddingPx * 2
+
+        val normalizedX = (offset.x - boardBounds.left - paddingPx) / boardContentWidth
+        val normalizedY = (offset.y - boardBounds.top - paddingPx) / boardContentHeight
+
+        val segmentThicknessNormalized = 0.12f
+        val hitMargin = 0.06f
+
+        AllSevenSegments.allSegments.forEach { segment ->
+            val segIsHorizontal = abs(segment.endY - segment.startY) < abs(segment.endX - segment.startX)
+            if (segIsHorizontal == stick.isHorizontal) {
+                val segLeft: Float
+                val segTop: Float
+                val segRight: Float
+                val segBottom: Float
+
+                if (segIsHorizontal) {
+                    segLeft = minOf(segment.startX, segment.endX) - hitMargin
+                    segRight = maxOf(segment.startX, segment.endX) + hitMargin
+                    segTop = segment.startY - segmentThicknessNormalized / 2 - hitMargin
+                    segBottom = segment.startY + segmentThicknessNormalized / 2 + hitMargin
+                } else {
+                    segLeft = segment.startX - segmentThicknessNormalized / 2 - hitMargin
+                    segRight = segment.startX + segmentThicknessNormalized / 2 + hitMargin
+                    segTop = minOf(segment.startY, segment.endY) - hitMargin
+                    segBottom = maxOf(segment.startY, segment.endY) + hitMargin
+                }
+
+                if (normalizedX in segLeft..segRight && normalizedY in segTop..segBottom) {
+                    return segment.id
+                }
+            }
+        }
+        return -1
+    }
 
     // Reset function
     fun resetLevel() {
@@ -291,6 +334,7 @@ fun StickBuilderScreen(
                     allSegments = AllSevenSegments.allSegments,
                     targetPattern = targetPattern,
                     showHint = showHint,
+                    hoveredSegmentId = hoveredSegmentId,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(32.dp)
@@ -399,47 +443,64 @@ fun StickBuilderScreen(
             onDragStart = { stick, offset ->
                 draggingStick = stick
                 dragOffset = offset
+                hoveredSegmentId = findHoveredSegment(offset, stick)
             },
             onDrag = { offset ->
                 dragOffset = offset
+                draggingStick?.let { stick ->
+                    hoveredSegmentId = findHoveredSegment(offset, stick)
+                }
             },
             onDragEnd = { stick, offset, trayTop ->
                 // If dropped above tray (on board area), place on board
                 if (offset.y < trayTop && boardBounds.width > 0) {
                     // Convert screen position to normalized board coordinates (0-1)
-                    // Account for the 32.dp padding inside the card
-                    val padding = 32f * 3f  // Approximate padding in pixels
-                    val boardContentWidth = boardBounds.width - padding * 2
-                    val boardContentHeight = boardBounds.height - padding * 2
+                    // Account for the 32.dp padding inside the card (using density-independent calculation)
+                    val paddingPx = 32f * context.resources.displayMetrics.density
+                    val boardContentWidth = boardBounds.width - paddingPx * 2
+                    val boardContentHeight = boardBounds.height - paddingPx * 2
 
-                    val normalizedX = (offset.x - boardBounds.left - padding) / boardContentWidth
-                    val normalizedY = (offset.y - boardBounds.top - padding) / boardContentHeight
+                    val normalizedX = (offset.x - boardBounds.left - paddingPx) / boardContentWidth
+                    val normalizedY = (offset.y - boardBounds.top - paddingPx) / boardContentHeight
 
-                    // Find the nearest segment that matches orientation
-                    var nearestSegment: StickSegment? = null
-                    var minDistance = Float.MAX_VALUE
+                    // Segment thickness in normalized coordinates (same as rendering: 0.12 of width)
+                    val segmentThicknessNormalized = 0.12f
+                    // Tolerance margin around segment bounds for easier placement
+                    val hitMargin = 0.06f
+
+                    // Find the segment that the stick is dropped over (using actual segment bounds)
+                    var matchedSegment: StickSegment? = null
 
                     AllSevenSegments.allSegments.forEach { segment ->
                         val segIsHorizontal = abs(segment.endY - segment.startY) < abs(segment.endX - segment.startX)
                         if (segIsHorizontal == stick.isHorizontal) {
-                            // Calculate segment center
-                            val segCenterX = (segment.startX + segment.endX) / 2
-                            val segCenterY = (segment.startY + segment.endY) / 2
+                            // Calculate segment bounds in normalized coordinates (matching rendering logic)
+                            val segLeft: Float
+                            val segTop: Float
+                            val segRight: Float
+                            val segBottom: Float
 
-                            val distance = kotlin.math.sqrt(
-                                (normalizedX - segCenterX) * (normalizedX - segCenterX) +
-                                (normalizedY - segCenterY) * (normalizedY - segCenterY)
-                            )
+                            if (segIsHorizontal) {
+                                segLeft = minOf(segment.startX, segment.endX) - hitMargin
+                                segRight = maxOf(segment.startX, segment.endX) + hitMargin
+                                segTop = segment.startY - segmentThicknessNormalized / 2 - hitMargin
+                                segBottom = segment.startY + segmentThicknessNormalized / 2 + hitMargin
+                            } else {
+                                segLeft = segment.startX - segmentThicknessNormalized / 2 - hitMargin
+                                segRight = segment.startX + segmentThicknessNormalized / 2 + hitMargin
+                                segTop = minOf(segment.startY, segment.endY) - hitMargin
+                                segBottom = maxOf(segment.startY, segment.endY) + hitMargin
+                            }
 
-                            if (distance < minDistance) {
-                                minDistance = distance
-                                nearestSegment = segment
+                            // Check if drop point is within the segment bounds
+                            if (normalizedX in segLeft..segRight && normalizedY in segTop..segBottom) {
+                                matchedSegment = segment
                             }
                         }
                     }
 
-                    // Only place if close enough (threshold 0.3 in normalized coords)
-                    if (nearestSegment != null && minDistance < 0.35f) {
+                    // Place stick if dropped over a valid segment
+                    if (matchedSegment != null) {
                         // Mark stick as not in tray
                         val index = traySticks.indexOfFirst { it.id == stick.id }
                         if (index >= 0) {
@@ -450,18 +511,19 @@ fun StickBuilderScreen(
                             PlacedStick(
                                 id = System.currentTimeMillis().toInt(),
                                 colorIndex = stick.colorIndex,
-                                startX = nearestSegment!!.startX,
-                                startY = nearestSegment!!.startY,
-                                endX = nearestSegment!!.endX,
-                                endY = nearestSegment!!.endY,
-                                matchedSegmentId = nearestSegment!!.id,
+                                startX = matchedSegment!!.startX,
+                                startY = matchedSegment!!.startY,
+                                endX = matchedSegment!!.endX,
+                                endY = matchedSegment!!.endY,
+                                matchedSegmentId = matchedSegment!!.id,
                                 isHorizontal = stick.isHorizontal
                             )
                         )
                     }
-                    // If not close to any segment, stick returns to tray (stays in tray)
+                    // If not over any segment, stick returns to tray (stays in tray)
                 }
                 // If dropped back on tray, stick remains in tray (no change needed)
+                hoveredSegmentId = -1
                 draggingStick = null
             }
         )
@@ -546,6 +608,7 @@ private fun SevenSegmentGhostCanvas(
     allSegments: List<StickSegment>,
     targetPattern: List<StickSegment>,
     showHint: Boolean,
+    hoveredSegmentId: Int = -1,
     modifier: Modifier = Modifier
 ) {
     // Get target segment IDs for hint highlighting
@@ -583,20 +646,34 @@ private fun SevenSegmentGhostCanvas(
                 rectHeight = abs(endY - startY)
             }
 
+            // Check if this segment is being hovered during drag
+            val isHovered = segment.id == hoveredSegmentId
+
             // Draw ghost segment outline (dashed border) for ALL segments
+            // Use highlighted color if hovered
             drawRoundRect(
-                color = Color.Gray.copy(alpha = 0.35f),
+                color = if (isHovered) Color(0xFF2196F3).copy(alpha = 0.6f) else Color.Gray.copy(alpha = 0.35f),
                 topLeft = Offset(rectLeft, rectTop),
                 size = Size(rectWidth, rectHeight),
                 cornerRadius = CornerRadius(cornerRadius, cornerRadius),
                 style = Stroke(
-                    width = 3f,
+                    width = if (isHovered) 4f else 3f,
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
                 )
             )
 
+            // Draw hover highlight fill (blue) when dragging over segment
+            if (isHovered) {
+                drawRoundRect(
+                    color = Color(0xFF2196F3).copy(alpha = 0.25f),
+                    topLeft = Offset(rectLeft, rectTop),
+                    size = Size(rectWidth, rectHeight),
+                    cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+                )
+            }
+
             // Draw hint fill ONLY for target segments when hint is enabled
-            if (showHint && segment.id in targetSegmentIds) {
+            if (showHint && segment.id in targetSegmentIds && !isHovered) {
                 val hintColor = Color(0xFF4CAF50) // Green for answer
                 drawRoundRect(
                     color = hintColor.copy(alpha = 0.5f),
