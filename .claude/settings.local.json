@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(./gradlew assembleDebug:*)",
-      "Bash(cmd.exe:*)"
+      "Bash(cmd.exe:*)",
+      "Bash(wc:*)",
+      "Bash(chmod:*)"
     ]
   }
 }

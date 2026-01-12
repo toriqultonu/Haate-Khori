@@ -41,7 +41,8 @@ fun LetterGridScreen(
     letterResults: Map<Int, MatchResult>,
     unlockedAchievements: Set<Achievement>,
     onLetterSelected: (Int) -> Unit,
-    onWordSearchClicked: () -> Unit = {}
+    onWordSearchClicked: () -> Unit = {},
+    onStickBuilderClicked: () -> Unit = {}
 ) {
     // Count letters with at least GOOD result for progress
     val completedCount = letterResults.count { it.value.ordinal >= MatchResult.GOOD.ordinal }
@@ -145,7 +146,7 @@ fun LetterGridScreen(
             onClick = onWordSearchClicked,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(bottom = 8.dp)
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF2196F3)
@@ -161,6 +162,29 @@ fun LetterGridScreen(
             )
             Spacer(Modifier.width(8.dp))
             Text("🎯", fontSize = 24.sp)
+        }
+
+        // Stick Builder Button
+        Button(
+            onClick = onStickBuilderClicked,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF8B4513)
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text("🪵", fontSize = 24.sp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Stick Builder",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("🔢", fontSize = 24.sp)
         }
 
         Row(
