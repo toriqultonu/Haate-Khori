@@ -909,8 +909,21 @@ private fun DraggingStickOverlay(
     offset: Offset
 ) {
     val color = stickColors[stick.colorIndex % stickColors.size]
+    var canvasPosition by remember { mutableStateOf(Offset.Zero) }
 
-    Canvas(modifier = Modifier.fillMaxSize()) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coords ->
+                canvasPosition = coords.positionInRoot()
+            }
+    ) {
+        // Adjust offset to be relative to this canvas's coordinate system
+        val adjustedOffset = Offset(
+            offset.x - canvasPosition.x,
+            offset.y - canvasPosition.y
+        )
+
         val stickWidth = if (stick.isHorizontal) 140f else 45f
         val stickHeight = if (stick.isHorizontal) 45f else 140f
         val cornerRadius = 22f
@@ -918,7 +931,7 @@ private fun DraggingStickOverlay(
         // Shadow
         drawRoundRect(
             color = Color.Black.copy(alpha = 0.3f),
-            topLeft = Offset(offset.x - stickWidth / 2 + 4, offset.y - stickHeight / 2 + 4),
+            topLeft = Offset(adjustedOffset.x - stickWidth / 2 + 4, adjustedOffset.y - stickHeight / 2 + 4),
             size = Size(stickWidth, stickHeight),
             cornerRadius = CornerRadius(cornerRadius, cornerRadius)
         )
@@ -926,7 +939,7 @@ private fun DraggingStickOverlay(
         // Main stick
         drawRoundRect(
             color = color,
-            topLeft = Offset(offset.x - stickWidth / 2, offset.y - stickHeight / 2),
+            topLeft = Offset(adjustedOffset.x - stickWidth / 2, adjustedOffset.y - stickHeight / 2),
             size = Size(stickWidth, stickHeight),
             cornerRadius = CornerRadius(cornerRadius, cornerRadius)
         )
@@ -934,7 +947,7 @@ private fun DraggingStickOverlay(
         // Highlight
         drawRoundRect(
             color = color.copy(alpha = 0.7f),
-            topLeft = Offset(offset.x - stickWidth / 2 + 4, offset.y - stickHeight / 2 + 4),
+            topLeft = Offset(adjustedOffset.x - stickWidth / 2 + 4, adjustedOffset.y - stickHeight / 2 + 4),
             size = Size(stickWidth - 8, stickHeight - 8),
             cornerRadius = CornerRadius(cornerRadius - 2, cornerRadius - 2)
         )
