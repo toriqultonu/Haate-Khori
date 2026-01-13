@@ -194,7 +194,7 @@ fun StickBuilderScreen(
         placedSticks.clear()
         showHint = false
         levelCompleted = false
-        showConfetti = false
+        // Don't reset showConfetti here - let the animation finish naturally
         draggingStick = null
         traySticks.clear()
         repeat(8) { index ->
