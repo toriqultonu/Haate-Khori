@@ -66,6 +66,7 @@ import com.example.alphabettracer.data.StickBuilderLevels
 import com.example.alphabettracer.data.StickBuilderStorage
 import com.example.alphabettracer.data.StickSegment
 import com.example.alphabettracer.data.stickColors
+import com.example.alphabettracer.ui.components.ConfettiAnimation
 import kotlin.math.abs
 
 // Represents a stick placed on the canvas
@@ -123,6 +124,7 @@ fun StickBuilderScreen(
     val placedSticks = remember { mutableStateListOf<PlacedStick>() }
     var showHint by remember { mutableStateOf(false) }
     var levelCompleted by remember { mutableStateOf(false) }
+    var showConfetti by remember { mutableStateOf(false) }
 
     // Tray sticks - 8 sticks (4 horizontal, 4 vertical)
     val traySticks = remember { mutableStateListOf<TrayStick>() }
@@ -192,6 +194,7 @@ fun StickBuilderScreen(
         placedSticks.clear()
         showHint = false
         levelCompleted = false
+        showConfetti = false
         draggingStick = null
         traySticks.clear()
         repeat(8) { index ->
@@ -417,6 +420,7 @@ fun StickBuilderScreen(
                         onClick = {
                             if (checkCompletion()) {
                                 levelCompleted = true
+                                showConfetti = true  // Trigger confetti celebration!
                                 StickBuilderStorage.saveChallengeCompleted(context, challenge.id)
                             }
                         },
@@ -581,6 +585,12 @@ fun StickBuilderScreen(
             )
         }
 
+        // Confetti animation overlay for celebration
+        ConfettiAnimation(
+            isPlaying = showConfetti,
+            onAnimationEnd = { showConfetti = false },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
