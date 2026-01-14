@@ -4,7 +4,14 @@
       "Bash(./gradlew assembleDebug:*)",
       "Bash(cmd.exe:*)",
       "Bash(wc:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(tree:*)",
+      "Bash(git checkout:*)",
+      "Bash(./gradlew compileDebugKotlin:*)",
+      "Bash(gradlew.bat assembleDebug:*)",
+      "Bash(cmd //c \"gradlew.bat assembleDebug\")",
+      "Bash(cmd //c \"cd /d C:\\\\Github\\\\HaateKhori && gradlew.bat assembleDebug\")",
+      "Bash(cmd //c \"C:\\\\Github\\\\HaateKhori\\\\gradlew.bat assembleDebug\")"
     ]
   }
 }

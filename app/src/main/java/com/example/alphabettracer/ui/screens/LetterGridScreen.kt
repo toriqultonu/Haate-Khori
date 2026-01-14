@@ -42,7 +42,10 @@ fun LetterGridScreen(
     unlockedAchievements: Set<Achievement>,
     onLetterSelected: (Int) -> Unit,
     onWordSearchClicked: () -> Unit = {},
-    onStickBuilderClicked: () -> Unit = {}
+    onStickBuilderClicked: () -> Unit = {},
+    onCountingGameClicked: () -> Unit = {},
+    onMemoryMatchClicked: () -> Unit = {},
+    onPatternGameClicked: () -> Unit = {}
 ) {
     // Count letters with at least GOOD result for progress
     val completedCount = letterResults.count { it.value.ordinal >= MatchResult.GOOD.ordinal }
@@ -169,7 +172,7 @@ fun LetterGridScreen(
             onClick = onStickBuilderClicked,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(bottom = 8.dp)
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF8B4513)
@@ -185,6 +188,74 @@ fun LetterGridScreen(
             )
             Spacer(Modifier.width(8.dp))
             Text("🔢", fontSize = 24.sp)
+        }
+
+        // New games row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Counting Game Button
+            Button(
+                onClick = onCountingGameClicked,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("🔢", fontSize = 20.sp)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "Count",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Memory Match Button
+            Button(
+                onClick = onMemoryMatchClicked,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF9C27B0)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("🧠", fontSize = 20.sp)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "Memory",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Pattern Game Button
+            Button(
+                onClick = onPatternGameClicked,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF9800)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("🧩", fontSize = 20.sp)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "Pattern",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Row(

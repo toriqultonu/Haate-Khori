@@ -113,6 +113,21 @@ fun AlphabetTracingApp() {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
                             }
                         }
+                        ScreenState.COUNTING_GAME -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        ScreenState.MEMORY_MATCH -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        ScreenState.PATTERN_GAME -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
                         else -> {}
                     }
                 },
@@ -152,6 +167,15 @@ fun AlphabetTracingApp() {
                         },
                         onStickBuilderClicked = {
                             screenState = ScreenState.STICK_BUILDER
+                        },
+                        onCountingGameClicked = {
+                            screenState = ScreenState.COUNTING_GAME
+                        },
+                        onMemoryMatchClicked = {
+                            screenState = ScreenState.MEMORY_MATCH
+                        },
+                        onPatternGameClicked = {
+                            screenState = ScreenState.PATTERN_GAME
                         }
                     )
                 }
@@ -217,6 +241,27 @@ fun AlphabetTracingApp() {
                 }
                 ScreenState.STICK_BUILDER -> {
                     StickBuilderScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
+                }
+                ScreenState.COUNTING_GAME -> {
+                    CountingGameScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
+                }
+                ScreenState.MEMORY_MATCH -> {
+                    MemoryMatchScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
+                }
+                ScreenState.PATTERN_GAME -> {
+                    PatternGameScreen(
                         onBackPressed = {
                             screenState = ScreenState.LETTER_GRID
                         }
