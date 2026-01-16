@@ -1,5 +1,15 @@
 package com.example.alphabettracer.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,11 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -20,272 +26,344 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.data.alphabetList
-import com.example.alphabettracer.model.Achievement
 import com.example.alphabettracer.model.MatchResult
-import com.example.alphabettracer.ui.components.AchievementSection
-import com.example.alphabettracer.ui.components.LetterGridItem
+import kotlinx.coroutines.delay
 
 @Composable
 fun LetterGridScreen(
     letterResults: Map<Int, MatchResult>,
-    unlockedAchievements: Set<Achievement>,
-    onLetterSelected: (Int) -> Unit,
+    onLetterPracticeClicked: () -> Unit,
     onWordSearchClicked: () -> Unit = {},
     onStickBuilderClicked: () -> Unit = {},
     onCountingGameClicked: () -> Unit = {},
     onMemoryMatchClicked: () -> Unit = {},
     onPatternGameClicked: () -> Unit = {}
 ) {
+    // Animation states for staggered entry
+    var showHeader by remember { mutableStateOf(false) }
+    var showLetterCard by remember { mutableStateOf(false) }
+    var showWordSearch by remember { mutableStateOf(false) }
+    var showStickBuilder by remember { mutableStateOf(false) }
+    var showMiniGames by remember { mutableStateOf(false) }
+
+    // Trigger staggered animations
+    LaunchedEffect(Unit) {
+        showHeader = true
+        delay(100)
+        showLetterCard = true
+        delay(150)
+        showWordSearch = true
+        delay(100)
+        showStickBuilder = true
+        delay(100)
+        showMiniGames = true
+    }
+
     // Count letters with at least GOOD result for progress
     val completedCount = letterResults.count { it.value.ordinal >= MatchResult.GOOD.ordinal }
-    val excellentCount = letterResults.count { it.value == MatchResult.EXCELLENT }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
-        // Fun decorative header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("🎨", fontSize = 24.sp)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "Let's Learn ABC!",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF6200EE)
+        // Fun decorative header with animation
+        AnimatedVisibility(
+            visible = showHeader,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                initialOffsetY = { -it },
+                animationSpec = tween(400)
             )
-            Spacer(Modifier.width(8.dp))
-            Text("✏️", fontSize = 24.sp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("🎮", fontSize = 28.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Let's Learn & Play!",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF6200EE)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("🎯", fontSize = 28.sp)
+            }
         }
 
-        // Progress indicator
-        val progress = excellentCount.toFloat() / alphabetList.size
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(16.dp)
+        // Letter Practice Card with animation
+        AnimatedVisibility(
+            visible = showLetterCard,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                initialOffsetY = { it / 2 },
+                animationSpec = tween(400)
+            )
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("📊", fontSize = 18.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "Your Progress",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("⭐", fontSize = 16.sp)
-                        Text(
-                            " $excellentCount/${alphabetList.size}",
-                            color = Color(0xFF4CAF50),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+                targetValue = if (isPressed) 0.96f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = "card_scale"
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .scale(scale)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onLetterPracticeClicked() },
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF6200EE)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(14.dp)
-                        .clip(RoundedCornerShape(7.dp)),
-                    color = Color(0xFF4CAF50),
-                    trackColor = Color(0xFFE8F5E9)
-                )
-                // Encouraging message based on progress
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = when {
-                        excellentCount == 0 -> "🌟 Start your adventure!"
-                        excellentCount < 5 -> "🚀 Great start! Keep going!"
-                        excellentCount < 13 -> "🔥 You're on fire!"
-                        excellentCount < 20 -> "💪 Almost there!"
-                        excellentCount < 26 -> "🏆 So close to mastery!"
-                        else -> "🎉 You're an Alphabet Master!"
-                    },
-                    fontSize = 14.sp,
-                    color = Color(0xFF6200EE),
-                    fontWeight = FontWeight.Medium
-                )
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text("ABC", fontSize = 36.sp)
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                "Practice Letters",
+                                fontSize = 22.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Trace A-Z with your finger",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Text("abc", fontSize = 36.sp)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "$completedCount of ${alphabetList.size} letters practiced",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
 
-        // Achievement section
-        AchievementSection(
-            unlockedAchievements = unlockedAchievements,
-            modifier = Modifier.padding(bottom = 16.dp)
+        // Games Section Header
+        AnimatedVisibility(
+            visible = showWordSearch,
+            enter = fadeIn(tween(200))
+        ) {
+            Text(
+                "Fun Games",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
+
+        // Word Search Button with animation
+        AnimatedVisibility(
+            visible = showWordSearch,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                initialOffsetY = { it / 2 },
+                animationSpec = tween(400)
+            )
+        ) {
+            AnimatedGameButton(
+                onClick = onWordSearchClicked,
+                containerColor = Color(0xFF2196F3),
+                leftEmoji = "🔍",
+                text = "Word Search",
+                rightEmoji = "🎯",
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        // Stick Builder Button with animation
+        AnimatedVisibility(
+            visible = showStickBuilder,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                initialOffsetY = { it / 2 },
+                animationSpec = tween(400)
+            )
+        ) {
+            AnimatedGameButton(
+                onClick = onStickBuilderClicked,
+                containerColor = Color(0xFF8B4513),
+                leftEmoji = "🪵",
+                text = "Stick Builder",
+                rightEmoji = "🔢",
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
+
+        // Mini games row with animation
+        AnimatedVisibility(
+            visible = showMiniGames,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                initialOffsetY = { it / 2 },
+                animationSpec = tween(400)
+            )
+        ) {
+            Column {
+                Text(
+                    "Quick Games",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF333333),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Counting Game Button
+                    MiniGameButton(
+                        onClick = onCountingGameClicked,
+                        containerColor = Color(0xFF4CAF50),
+                        emoji = "🔢",
+                        text = "Count",
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Memory Match Button
+                    MiniGameButton(
+                        onClick = onMemoryMatchClicked,
+                        containerColor = Color(0xFF9C27B0),
+                        emoji = "🧠",
+                        text = "Memory",
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Pattern Game Button
+                    MiniGameButton(
+                        onClick = onPatternGameClicked,
+                        containerColor = Color(0xFFFF9800),
+                        emoji = "🧩",
+                        text = "Pattern",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedGameButton(
+    onClick: () -> Unit,
+    containerColor: Color,
+    leftEmoji: String,
+    text: String,
+    rightEmoji: String,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "button_scale"
+    )
+
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .scale(scale),
+        colors = ButtonDefaults.buttonColors(containerColor = containerColor),
+        shape = RoundedCornerShape(16.dp),
+        interactionSource = interactionSource
+    ) {
+        Text(leftEmoji, fontSize = 24.sp)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
         )
+        Spacer(Modifier.width(8.dp))
+        Text(rightEmoji, fontSize = 24.sp)
+    }
+}
 
-        // Word Search Button
-        Button(
-            onClick = onWordSearchClicked,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF2196F3)
-            ),
-            shape = RoundedCornerShape(16.dp)
+@Composable
+private fun MiniGameButton(
+    onClick: () -> Unit,
+    containerColor: Color,
+    emoji: String,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.9f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "mini_button_scale"
+    )
+
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .height(70.dp)
+            .scale(scale),
+        colors = ButtonDefaults.buttonColors(containerColor = containerColor),
+        shape = RoundedCornerShape(16.dp),
+        interactionSource = interactionSource
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("🔍", fontSize = 24.sp)
-            Spacer(Modifier.width(8.dp))
+            Text(emoji, fontSize = 24.sp)
+            Spacer(Modifier.height(2.dp))
             Text(
-                "Play Word Search",
-                fontSize = 18.sp,
+                text,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.width(8.dp))
-            Text("🎯", fontSize = 24.sp)
-        }
-
-        // Stick Builder Button
-        Button(
-            onClick = onStickBuilderClicked,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF8B4513)
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text("🪵", fontSize = 24.sp)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "Stick Builder",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.width(8.dp))
-            Text("🔢", fontSize = 24.sp)
-        }
-
-        // New games row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Counting Game Button
-            Button(
-                onClick = onCountingGameClicked,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF4CAF50)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("🔢", fontSize = 20.sp)
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    "Count",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Memory Match Button
-            Button(
-                onClick = onMemoryMatchClicked,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF9C27B0)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("🧠", fontSize = 20.sp)
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    "Memory",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Pattern Game Button
-            Button(
-                onClick = onPatternGameClicked,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFF9800)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("🧩", fontSize = 20.sp)
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    "Pattern",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Row(
-            modifier = Modifier.padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("👆", fontSize = 18.sp)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "Tap a letter to practice!",
-                fontSize = 16.sp,
-                color = Color(0xFF6200EE),
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        // Letter grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            itemsIndexed(alphabetList) { index, item ->
-                val result = letterResults[index] ?: MatchResult.NONE
-                LetterGridItem(
-                    letter = item.letter,
-                    result = result,
-                    onClick = { onLetterSelected(index) }
-                )
-            }
         }
     }
 }
