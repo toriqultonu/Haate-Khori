@@ -93,9 +93,14 @@ fun AlphabetTracingApp() {
                 },
                 navigationIcon = {
                     when (screenState) {
-                        ScreenState.TRACING -> {
+                        ScreenState.LETTER_SELECTION -> {
                             IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to grid")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        ScreenState.TRACING -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_SELECTION }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to letters")
                             }
                         }
                         ScreenState.WORD_SEARCH_TOPICS -> {
@@ -158,9 +163,8 @@ fun AlphabetTracingApp() {
                     LetterGridScreen(
                         letterResults = letterResults,
                         unlockedAchievements = unlockedAchievements,
-                        onLetterSelected = { index ->
-                            currentIndex = index
-                            screenState = ScreenState.TRACING
+                        onLetterPracticeClicked = {
+                            screenState = ScreenState.LETTER_SELECTION
                         },
                         onWordSearchClicked = {
                             screenState = ScreenState.WORD_SEARCH_TOPICS
@@ -176,6 +180,15 @@ fun AlphabetTracingApp() {
                         },
                         onPatternGameClicked = {
                             screenState = ScreenState.PATTERN_GAME
+                        }
+                    )
+                }
+                ScreenState.LETTER_SELECTION -> {
+                    LetterSelectionScreen(
+                        letterResults = letterResults,
+                        onLetterSelected = { index ->
+                            currentIndex = index
+                            screenState = ScreenState.TRACING
                         }
                     )
                 }

@@ -1,5 +1,6 @@
 package com.example.alphabettracer.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,9 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -34,13 +32,12 @@ import com.example.alphabettracer.data.alphabetList
 import com.example.alphabettracer.model.Achievement
 import com.example.alphabettracer.model.MatchResult
 import com.example.alphabettracer.ui.components.AchievementSection
-import com.example.alphabettracer.ui.components.LetterGridItem
 
 @Composable
 fun LetterGridScreen(
     letterResults: Map<Int, MatchResult>,
     unlockedAchievements: Set<Achievement>,
-    onLetterSelected: (Int) -> Unit,
+    onLetterPracticeClicked: () -> Unit,
     onWordSearchClicked: () -> Unit = {},
     onStickBuilderClicked: () -> Unit = {},
     onCountingGameClicked: () -> Unit = {},
@@ -258,32 +255,48 @@ fun LetterGridScreen(
             }
         }
 
-        Row(
-            modifier = Modifier.padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Letter Practice Card - clickable to expand to letter grid
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onLetterPracticeClicked() },
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF6200EE)),
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Text("👆", fontSize = 18.sp)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "Tap a letter to practice!",
-                fontSize = 16.sp,
-                color = Color(0xFF6200EE),
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        // Letter grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            itemsIndexed(alphabetList) { index, item ->
-                val result = letterResults[index] ?: MatchResult.NONE
-                LetterGridItem(
-                    letter = item.letter,
-                    result = result,
-                    onClick = { onLetterSelected(index) }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("ABC", fontSize = 32.sp)
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            "Tap a letter to practice!",
+                            fontSize = 18.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Learn to trace A-Z",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Text("abc", fontSize = 32.sp)
+                }
+                Spacer(Modifier.height(12.dp))
+                // Show progress summary
+                Text(
+                    "$completedCount of ${alphabetList.size} letters practiced",
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.9f)
                 )
             }
         }
