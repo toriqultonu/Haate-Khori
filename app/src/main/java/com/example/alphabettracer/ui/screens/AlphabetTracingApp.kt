@@ -37,6 +37,7 @@ import com.example.alphabettracer.data.LetterStorage
 import com.example.alphabettracer.data.alphabetList
 import com.example.alphabettracer.model.Achievement
 import com.example.alphabettracer.model.ScreenState
+import com.example.alphabettracer.model.WordSearchTopic
 import com.example.alphabettracer.ui.components.AchievementPopup
 import com.example.alphabettracer.util.SoundManager
 
@@ -47,6 +48,7 @@ fun AlphabetTracingApp() {
     var screenState by remember { mutableStateOf(ScreenState.LETTER_GRID) }
     var currentIndex by remember { mutableStateOf(0) }
     var userStreak by remember { mutableStateOf(0) }
+    var selectedTopic by remember { mutableStateOf<WordSearchTopic?>(null) }
 
     // Load saved results from storage
     var letterResults by remember {
@@ -97,10 +99,43 @@ fun AlphabetTracingApp() {
                     }
                 },
                 navigationIcon = {
-                    if (screenState == ScreenState.TRACING) {
-                        IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to grid")
+                    when (screenState) {
+                        ScreenState.TRACING -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to grid")
+                            }
                         }
+                        ScreenState.WORD_SEARCH_TOPICS -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        ScreenState.WORD_SEARCH_GAME -> {
+                            IconButton(onClick = { screenState = ScreenState.WORD_SEARCH_TOPICS }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to topics")
+                            }
+                        }
+                        ScreenState.STICK_BUILDER -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        ScreenState.COUNTING_GAME -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        ScreenState.MEMORY_MATCH -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        ScreenState.PATTERN_GAME -> {
+                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
+                            }
+                        }
+                        else -> {}
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -133,6 +168,21 @@ fun AlphabetTracingApp() {
                         onLetterSelected = { index ->
                             currentIndex = index
                             screenState = ScreenState.TRACING
+                        },
+                        onWordSearchClicked = {
+                            screenState = ScreenState.WORD_SEARCH_TOPICS
+                        },
+                        onStickBuilderClicked = {
+                            screenState = ScreenState.STICK_BUILDER
+                        },
+                        onCountingGameClicked = {
+                            screenState = ScreenState.COUNTING_GAME
+                        },
+                        onMemoryMatchClicked = {
+                            screenState = ScreenState.MEMORY_MATCH
+                        },
+                        onPatternGameClicked = {
+                            screenState = ScreenState.PATTERN_GAME
                         }
                     )
                 }
@@ -169,6 +219,58 @@ fun AlphabetTracingApp() {
                         },
                         onNavigate = { newIndex ->
                             currentIndex = newIndex
+                        }
+                    )
+                }
+                ScreenState.WORD_SEARCH_TOPICS -> {
+                    WordSearchTopicScreen(
+                        onTopicSelected = { topic ->
+                            selectedTopic = topic
+                            screenState = ScreenState.WORD_SEARCH_GAME
+                        },
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
+                }
+                ScreenState.WORD_SEARCH_GAME -> {
+                    selectedTopic?.let { topic ->
+                        WordSearchGameScreen(
+                            topic = topic,
+                            onBackPressed = {
+                                screenState = ScreenState.WORD_SEARCH_TOPICS
+                            },
+                            onGameComplete = {
+                                // Game completed
+                            }
+                        )
+                    }
+                }
+                ScreenState.STICK_BUILDER -> {
+                    StickBuilderScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
+                }
+                ScreenState.COUNTING_GAME -> {
+                    CountingGameScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
+                }
+                ScreenState.MEMORY_MATCH -> {
+                    MemoryMatchScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
+                        }
+                    )
+                }
+                ScreenState.PATTERN_GAME -> {
+                    PatternGameScreen(
+                        onBackPressed = {
+                            screenState = ScreenState.LETTER_GRID
                         }
                     )
                 }
