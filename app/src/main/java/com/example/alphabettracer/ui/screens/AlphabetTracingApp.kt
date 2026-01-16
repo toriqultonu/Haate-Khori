@@ -162,7 +162,6 @@ fun AlphabetTracingApp() {
                 ScreenState.LETTER_GRID -> {
                     LetterGridScreen(
                         letterResults = letterResults,
-                        unlockedAchievements = unlockedAchievements,
                         onLetterPracticeClicked = {
                             screenState = ScreenState.LETTER_SELECTION
                         },
@@ -186,6 +185,7 @@ fun AlphabetTracingApp() {
                 ScreenState.LETTER_SELECTION -> {
                     LetterSelectionScreen(
                         letterResults = letterResults,
+                        unlockedAchievements = unlockedAchievements,
                         onLetterSelected = { index ->
                             currentIndex = index
                             screenState = ScreenState.TRACING
