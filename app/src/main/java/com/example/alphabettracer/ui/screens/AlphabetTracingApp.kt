@@ -20,40 +20,51 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.alphabettracer.constants.AppColors
+import com.example.alphabettracer.constants.AppDimensions
+import com.example.alphabettracer.constants.AppEmojis
+import com.example.alphabettracer.constants.AppStrings
+import com.example.alphabettracer.content.AlphabetContent
 import com.example.alphabettracer.data.AchievementStorage
 import com.example.alphabettracer.data.LetterStorage
-import com.example.alphabettracer.data.alphabetList
 import com.example.alphabettracer.model.Achievement
-import com.example.alphabettracer.model.ScreenState
 import com.example.alphabettracer.model.WordSearchTopic
+import com.example.alphabettracer.navigation.AppNavHost
+import com.example.alphabettracer.navigation.getScreenTitle
+import com.example.alphabettracer.navigation.shouldShowBackButton
 import com.example.alphabettracer.ui.components.AchievementPopup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlphabetTracingApp() {
     val context = LocalContext.current
-    var screenState by remember { mutableStateOf(ScreenState.LETTER_GRID) }
-    var currentIndex by remember { mutableStateOf(0) }
-    var userStreak by remember { mutableStateOf(0) }
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    var currentIndex by remember { mutableIntStateOf(0) }
+    var userStreak by remember { mutableIntStateOf(0) }
     var selectedTopic by remember { mutableStateOf<WordSearchTopic?>(null) }
 
     // Load saved results from storage
     var letterResults by remember {
-        mutableStateOf(LetterStorage.getAllResults(context, alphabetList.size))
+        mutableStateOf(LetterStorage.getAllResults(context, AlphabetContent.alphabetList.size))
     }
     var totalStars by remember {
-        mutableStateOf(LetterStorage.getTotalStars(context, alphabetList.size))
+        mutableStateOf(LetterStorage.getTotalStars(context, AlphabetContent.alphabetList.size))
     }
 
     // Achievement tracking
@@ -71,75 +82,47 @@ fun AlphabetTracingApp() {
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "Haate Khori",
+                            getScreenTitle(currentRoute),
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(AppDimensions.Spacing.Medium))
                         // Stars counter
                         Surface(
-                            color = Color(0xFFFFD700).copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(16.dp)
+                            color = AppColors.Achievement.Gold.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(AppDimensions.CornerRadius.Default)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(
+                                    horizontal = AppDimensions.Padding.Medium,
+                                    vertical = AppDimensions.Padding.ExtraSmall
+                                ),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("⭐", fontSize = 16.sp)
-                                Spacer(Modifier.width(4.dp))
-                                Text("$totalStars", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(AppEmojis.STAR, fontSize = AppDimensions.TextSize.Default)
+                                Spacer(Modifier.width(AppDimensions.Spacing.ExtraSmall))
+                                Text(
+                                    "$totalStars",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = AppDimensions.TextSize.Medium
+                                )
                             }
                         }
                     }
                 },
                 navigationIcon = {
-                    when (screenState) {
-                        ScreenState.LETTER_SELECTION -> {
-                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
-                            }
+                    if (shouldShowBackButton(currentRoute)) {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = AppStrings.Navigation.BACK
+                            )
                         }
-                        ScreenState.TRACING -> {
-                            IconButton(onClick = { screenState = ScreenState.LETTER_SELECTION }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to letters")
-                            }
-                        }
-                        ScreenState.WORD_SEARCH_TOPICS -> {
-                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
-                            }
-                        }
-                        ScreenState.WORD_SEARCH_GAME -> {
-                            IconButton(onClick = { screenState = ScreenState.WORD_SEARCH_TOPICS }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to topics")
-                            }
-                        }
-                        ScreenState.STICK_BUILDER -> {
-                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
-                            }
-                        }
-                        ScreenState.COUNTING_GAME -> {
-                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
-                            }
-                        }
-                        ScreenState.MEMORY_MATCH -> {
-                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
-                            }
-                        }
-                        ScreenState.PATTERN_GAME -> {
-                            IconButton(onClick = { screenState = ScreenState.LETTER_GRID }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to home")
-                            }
-                        }
-                        else -> {}
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF6200EE),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = AppColors.TopBarBackground,
+                    titleContentColor = AppColors.TopBarContent,
+                    navigationIconContentColor = AppColors.TopBarContent
                 )
             )
         }
@@ -151,136 +134,58 @@ fun AlphabetTracingApp() {
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFFF8E1),  // Warm cream at top
-                            Color(0xFFE3F2FD),  // Light blue
-                            Color(0xFFF3E5F5)   // Light purple at bottom
+                            AppColors.Gradients.BackgroundTop,
+                            AppColors.Gradients.BackgroundMiddle,
+                            AppColors.Gradients.BackgroundBottom
                         )
                     )
                 )
         ) {
-            when (screenState) {
-                ScreenState.LETTER_GRID -> {
-                    LetterGridScreen(
-                        letterResults = letterResults,
-                        onLetterPracticeClicked = {
-                            screenState = ScreenState.LETTER_SELECTION
-                        },
-                        onWordSearchClicked = {
-                            screenState = ScreenState.WORD_SEARCH_TOPICS
-                        },
-                        onStickBuilderClicked = {
-                            screenState = ScreenState.STICK_BUILDER
-                        },
-                        onCountingGameClicked = {
-                            screenState = ScreenState.COUNTING_GAME
-                        },
-                        onMemoryMatchClicked = {
-                            screenState = ScreenState.MEMORY_MATCH
-                        },
-                        onPatternGameClicked = {
-                            screenState = ScreenState.PATTERN_GAME
-                        }
-                    )
-                }
-                ScreenState.LETTER_SELECTION -> {
-                    LetterSelectionScreen(
-                        letterResults = letterResults,
-                        unlockedAchievements = unlockedAchievements,
-                        onLetterSelected = { index ->
-                            currentIndex = index
-                            screenState = ScreenState.TRACING
-                        }
-                    )
-                }
-                ScreenState.TRACING -> {
-                    TracingScreen(
-                        currentIndex = currentIndex,
-                        userStreak = userStreak,
-                        onStreakUpdate = { newStreak ->
-                            userStreak = newStreak
-                            AchievementStorage.updateMaxStreak(context, newStreak)
-                        },
-                        onResultSaved = { index, result ->
-                            // Save to persistent storage
-                            LetterStorage.saveLetterResult(context, index, result)
-                            // Update local state
-                            letterResults = LetterStorage.getAllResults(context, alphabetList.size)
-                            totalStars = LetterStorage.getTotalStars(context, alphabetList.size)
+            AppNavHost(
+                navController = navController,
+                letterResults = letterResults,
+                unlockedAchievements = unlockedAchievements,
+                userStreak = userStreak,
+                totalStars = totalStars,
+                selectedTopic = selectedTopic,
+                currentLetterIndex = currentIndex,
+                onLetterSelected = { index ->
+                    currentIndex = index
+                },
+                onTopicSelected = { topic ->
+                    selectedTopic = topic
+                },
+                onStreakUpdate = { newStreak ->
+                    userStreak = newStreak
+                    AchievementStorage.updateMaxStreak(context, newStreak)
+                },
+                onResultSaved = { index, result ->
+                    // Save to persistent storage
+                    LetterStorage.saveLetterResult(context, index, result)
+                    // Update local state
+                    letterResults = LetterStorage.getAllResults(context, AlphabetContent.alphabetList.size)
+                    totalStars = LetterStorage.getTotalStars(context, AlphabetContent.alphabetList.size)
 
-                            // Check for new achievements
-                            val newAchievements = AchievementStorage.checkAndUnlockAchievements(
-                                context = context,
-                                totalStars = totalStars,
-                                currentStreak = userStreak,
-                                colorsUsed = colorsUsed
-                            )
-                            if (newAchievements.isNotEmpty()) {
-                                unlockedAchievements = AchievementStorage.getUnlockedAchievements(context)
-                                pendingAchievement = newAchievements.first()
-                            }
-                        },
-                        onColorUsed = { colorIndex ->
-                            AchievementStorage.recordColorUsed(context, colorIndex)
-                            colorsUsed = AchievementStorage.getColorsUsedCount(context)
-                        },
-                        onNavigate = { newIndex ->
-                            currentIndex = newIndex
-                        }
+                    // Check for new achievements
+                    val newAchievements = AchievementStorage.checkAndUnlockAchievements(
+                        context = context,
+                        totalStars = totalStars,
+                        currentStreak = userStreak,
+                        colorsUsed = colorsUsed
                     )
-                }
-                ScreenState.WORD_SEARCH_TOPICS -> {
-                    WordSearchTopicScreen(
-                        onTopicSelected = { topic ->
-                            selectedTopic = topic
-                            screenState = ScreenState.WORD_SEARCH_GAME
-                        },
-                        onBackPressed = {
-                            screenState = ScreenState.LETTER_GRID
-                        }
-                    )
-                }
-                ScreenState.WORD_SEARCH_GAME -> {
-                    selectedTopic?.let { topic ->
-                        WordSearchGameScreen(
-                            topic = topic,
-                            onBackPressed = {
-                                screenState = ScreenState.WORD_SEARCH_TOPICS
-                            },
-                            onGameComplete = {
-                                // Game completed
-                            }
-                        )
+                    if (newAchievements.isNotEmpty()) {
+                        unlockedAchievements = AchievementStorage.getUnlockedAchievements(context)
+                        pendingAchievement = newAchievements.first()
                     }
+                },
+                onColorUsed = { colorIndex ->
+                    AchievementStorage.recordColorUsed(context, colorIndex)
+                    colorsUsed = AchievementStorage.getColorsUsedCount(context)
+                },
+                onNavigateLetter = { newIndex ->
+                    currentIndex = newIndex
                 }
-                ScreenState.STICK_BUILDER -> {
-                    StickBuilderScreen(
-                        onBackPressed = {
-                            screenState = ScreenState.LETTER_GRID
-                        }
-                    )
-                }
-                ScreenState.COUNTING_GAME -> {
-                    CountingGameScreen(
-                        onBackPressed = {
-                            screenState = ScreenState.LETTER_GRID
-                        }
-                    )
-                }
-                ScreenState.MEMORY_MATCH -> {
-                    MemoryMatchScreen(
-                        onBackPressed = {
-                            screenState = ScreenState.LETTER_GRID
-                        }
-                    )
-                }
-                ScreenState.PATTERN_GAME -> {
-                    PatternGameScreen(
-                        onBackPressed = {
-                            screenState = ScreenState.LETTER_GRID
-                        }
-                    )
-                }
-            }
+            )
         }
     }
 
