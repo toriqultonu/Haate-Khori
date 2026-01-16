@@ -15,6 +15,7 @@ import com.example.alphabettracer.constants.AppDimensions
 import com.example.alphabettracer.model.Achievement
 import com.example.alphabettracer.model.MatchResult
 import com.example.alphabettracer.model.WordSearchTopic
+import com.example.alphabettracer.ui.screens.ColoringScreen
 import com.example.alphabettracer.ui.screens.CountingGameScreen
 import com.example.alphabettracer.ui.screens.LetterGridScreen
 import com.example.alphabettracer.ui.screens.LetterSelectionScreen
@@ -102,6 +103,9 @@ fun AppNavHost(
                 },
                 onPatternGameClicked = {
                     navController.navigateToPatternGame()
+                },
+                onColoringClicked = {
+                    navController.navigateToColoring()
                 }
             )
         }
@@ -213,6 +217,15 @@ fun AppNavHost(
         // Pattern Game
         composable(Screen.PatternGame.route) {
             PatternGameScreen(
+                onBackPressed = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Coloring Book
+        composable(Screen.Coloring.route) {
+            ColoringScreen(
                 onBackPressed = {
                     navController.popBackStack()
                 }

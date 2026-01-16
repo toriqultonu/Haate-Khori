@@ -26,6 +26,7 @@ sealed class Screen(val route: String) {
     data object CountingGame : Screen("counting_game")
     data object MemoryMatch : Screen("memory_match")
     data object PatternGame : Screen("pattern_game")
+    data object Coloring : Screen("coloring")
 }
 
 /**
@@ -97,6 +98,12 @@ fun NavController.navigateToPatternGame() {
     }
 }
 
+fun NavController.navigateToColoring() {
+    navigate(Screen.Coloring.route) {
+        launchSingleTop = true
+    }
+}
+
 /**
  * Get the display title for the current route
  */
@@ -112,6 +119,7 @@ fun getScreenTitle(route: String?): String {
         route == Screen.CountingGame.route -> "Count & Learn"
         route == Screen.MemoryMatch.route -> "Memory Match"
         route == Screen.PatternGame.route -> "Pattern Game"
+        route == Screen.Coloring.route -> "Coloring Book"
         else -> "Haate Khori"
     }
 }
