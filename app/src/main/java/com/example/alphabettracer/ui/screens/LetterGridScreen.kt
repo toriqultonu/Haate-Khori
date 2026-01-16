@@ -52,11 +52,13 @@ fun LetterGridScreen(
     onStickBuilderClicked: () -> Unit = {},
     onCountingGameClicked: () -> Unit = {},
     onMemoryMatchClicked: () -> Unit = {},
-    onPatternGameClicked: () -> Unit = {}
+    onPatternGameClicked: () -> Unit = {},
+    onColoringClicked: () -> Unit = {}
 ) {
     // Animation states for staggered entry
     var showHeader by remember { mutableStateOf(false) }
     var showLetterCard by remember { mutableStateOf(false) }
+    var showColoringCard by remember { mutableStateOf(false) }
     var showWordSearch by remember { mutableStateOf(false) }
     var showStickBuilder by remember { mutableStateOf(false) }
     var showMiniGames by remember { mutableStateOf(false) }
@@ -66,6 +68,8 @@ fun LetterGridScreen(
         showHeader = true
         delay(100)
         showLetterCard = true
+        delay(100)
+        showColoringCard = true
         delay(150)
         showWordSearch = true
         delay(100)
@@ -173,6 +177,76 @@ fun LetterGridScreen(
                     Spacer(Modifier.height(16.dp))
                     Text(
                         "$completedCount of ${alphabetList.size} letters practiced",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // Coloring Book Card with animation
+        AnimatedVisibility(
+            visible = showColoringCard,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                initialOffsetY = { it / 2 },
+                animationSpec = tween(400)
+            )
+        ) {
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+                targetValue = if (isPressed) 0.96f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = "coloring_card_scale"
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .scale(scale)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onColoringClicked() },
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE91E63)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text("🎨", fontSize = 36.sp)
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                "Coloring Book",
+                                fontSize = 22.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Color fun shapes & pictures",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Text("🖌️", fontSize = 36.sp)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "12 pictures to color!",
                         fontSize = 16.sp,
                         color = Color.White.copy(alpha = 0.9f),
                         fontWeight = FontWeight.Medium
