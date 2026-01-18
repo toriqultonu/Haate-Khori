@@ -76,7 +76,8 @@ app/src/main/java/com/example/alphabettracer/
     │   ├── AchievementBadge.kt         # Achievement badge
     │   ├── AchievementPopup.kt         # Unlock dialog
     │   ├── ConfettiAnimation.kt        # Celebration particles
-    │   └── AchievementSection.kt       # Achievement display
+    │   ├── AchievementSection.kt       # Achievement display
+    │   └── WordSearchTutorial.kt       # Interactive tutorial overlay
     └── theme/                          # Material theming
         ├── Theme.kt
         ├── Color.kt
@@ -113,13 +114,20 @@ app/src/main/java/com/example/alphabettracer/
   - Count, Memory, Pattern (mini buttons)
 
 ### 3. Word Search
-**Files:** `WordSearchTopicScreen.kt`, `WordSearchGameScreen.kt`
+**Files:** `WordSearchTopicScreen.kt`, `WordSearchGameScreen.kt`, `WordSearchTutorial.kt`
 
 - 8 topics: Countries, Body Parts, Vehicles, Food, Animals, Colors, Fruits, Family
 - 10x10 grid with 4 search directions
 - Drag selection with color highlighting
 - Timer tracking with best times
 - Save/resume game state
+- **First-time interactive tutorial:**
+  - Shows on first game launch with animated hand pointer
+  - 4-step walkthrough: Introduction, Touch & Drag, Any Direction, Ready to Play
+  - Animated hand demonstrates horizontal and diagonal selection on actual grid
+  - Auto-advances every 3.5 seconds or tap to continue
+  - Skip button available to dismiss immediately
+  - Tutorial state persisted in SharedPreferences
 
 ### 4. Stick Builder
 **File:** `StickBuilderScreen.kt`
@@ -295,7 +303,7 @@ data class StickBuilderLevelContent(
 |---------------|------------------|---------|
 | `LetterStorage` | `haate_khori_prefs` | Letter progress, color/stroke preferences |
 | `AchievementStorage` | `haate_khori_achievements` | Achievements, streaks |
-| `WordSearchStorage` | `word_search_prefs` | Game state, completion, times |
+| `WordSearchStorage` | `word_search_prefs` | Game state, completion, times, tutorial shown flag |
 | `StickBuilderStorage` | `stick_builder_prefs` | Level progress |
 | `CountingGameStorage` | `counting_game_prefs` | Scores, stats |
 | `MemoryMatchStorage` | `memory_match_prefs` | Best moves/times |
@@ -346,6 +354,16 @@ Particle-based celebration:
 - Falling motion with wobble and rotation
 - 3-second duration
 - Callback on completion
+
+### WordSearchTutorial
+Interactive first-time tutorial overlay:
+- Semi-transparent overlay on game screen
+- 4-step instruction flow with step indicator dots
+- Animated hand pointer (👆) demonstrating drag gestures
+- Canvas-based selection trail animation (horizontal/diagonal)
+- Auto-advance with tap-to-continue option
+- Skip button for experienced users
+- Persists "tutorial shown" flag via `WordSearchStorage`
 
 ---
 
@@ -434,6 +452,13 @@ org.json
 2. Add unlock logic to `AchievementStorage.kt`
 3. Achievement automatically tracked and displayed
 
+### Adding First-Time Tutorial to a Game
+1. Add `hasShownTutorial()` and `markTutorialShown()` functions to game's storage class
+2. Create tutorial component in `ui/components/` (see `WordSearchTutorial.kt` as reference)
+3. Add tutorial state and visibility check in game screen using `LaunchedEffect`
+4. Wrap game content in `Box` and overlay tutorial component
+5. Pause game timer while tutorial is showing
+
 ---
 
 ## API Integration Notes
@@ -474,6 +499,7 @@ Recent commits focus on:
 - Confetti animations
 - Coloring book feature
 - Navigation improvements
+- Word Search interactive tutorial with animated hand pointer
 
 ---
 
@@ -488,6 +514,7 @@ Recent commits focus on:
 | Navigation | `navigation/AppNavigation.kt`, `AppNavHost.kt` |
 | Letter tracing | `ui/screens/TracingScreen.kt`, `ui/components/TracingCanvas.kt` |
 | Coloring | `ui/screens/ColoringScreen.kt`, `ui/components/ColoringCanvas.kt` |
+| Word Search tutorial | `ui/components/WordSearchTutorial.kt` |
 | All content | `content/*.kt` |
 | All storage | `data/*Storage.kt` |
 | All models | `model/*.kt` |
