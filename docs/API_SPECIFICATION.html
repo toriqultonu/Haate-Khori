@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HaateKhori API Specification - Spring Boot Backend</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #6200EE;
+            border-bottom: 3px solid #6200EE;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #1a1a2e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+        }
+        h3 {
+            color: #2196F3;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        h4 {
+            color: #666;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        pre .keyword { color: #569cd6; }
+        pre .string { color: #ce9178; }
+        pre .number { color: #b5cea8; }
+        pre .comment { color: #6a9955; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #6200EE;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .endpoint {
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .endpoint-method {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .get { background: #4CAF50; color: white; }
+        .post { background: #2196F3; color: white; }
+        .put { background: #FF9800; color: white; }
+        .delete { background: #f44336; color: white; }
+        .endpoint-url {
+            font-family: monospace;
+            font-size: 16px;
+            color: #333;
+        }
+        .note {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .important {
+            background: #fce4ec;
+            border-left: 4px solid #e91e63;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        ul, ol {
+            margin: 15px 0 15px 30px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .toc {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .toc ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #6200EE;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .required { background: #ffcdd2; color: #c62828; }
+        .optional { background: #c8e6c9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HaateKhori - Backend API Specification</h1>
+        <p><strong>Project:</strong> HaateKhori - Kids Learning App (Android/Kotlin)</p>
+        <p><strong>Backend Technology:</strong> Spring Boot (Java/Kotlin)</p>
+        <p><strong>Database:</strong> PostgreSQL / MySQL (recommended)</p>
+        <p><strong>Version:</strong> 1.0.0</p>
+
+        <!-- Table of Contents -->
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li><a href="#overview">1. Project Overview</a></li>
+                <li><a href="#tech-stack">2. Technology Stack Requirements</a></li>
+                <li><a href="#database">3. Database Schema Design</a></li>
+                <li><a href="#entities">4. Entity Classes</a></li>
+                <li><a href="#api-endpoints">5. API Endpoints</a></li>
+                <li><a href="#response-format">6. Response Format</a></li>
+                <li><a href="#error-handling">7. Error Handling</a></li>
+                <li><a href="#sample-data">8. Sample Data for Seeding</a></li>
+                <li><a href="#project-structure">9. Project Structure</a></li>
+            </ul>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <h2 id="overview">1. Project Overview</h2>
+        <p>HaateKhori is an educational Android app for kids featuring multiple learning games. The backend needs to provide content data for the following modules:</p>
+        <ul>
+            <li><strong>Alphabet Learning:</strong> 26 letters with words, sentences, and emojis</li>
+            <li><strong>Word Search:</strong> Multiple topics with word lists for puzzle generation</li>
+            <li><strong>Counting Game:</strong> Categories with emoji items for counting practice</li>
+            <li><strong>Memory Match:</strong> Card pair categories for memory game</li>
+            <li><strong>Pattern Recognition:</strong> "What comes next?" pattern sequences</li>
+            <li><strong>Stick Builder:</strong> 7-segment display number building game</li>
+            <li><strong>Coloring Book:</strong> Coloring pages with shape definitions and color palette</li>
+        </ul>
+
+        <!-- Section 2: Tech Stack -->
+        <h2 id="tech-stack">2. Technology Stack Requirements</h2>
+        <h3>Required Dependencies (pom.xml / build.gradle)</h3>
+        <pre>
+// Gradle (build.gradle.kts)
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.postgresql:postgresql") // or mysql-connector-java
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0") // Swagger
+
+    // Optional
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("com.github.ben-manes.caffeine:caffeine") // In-memory cache
+}
+        </pre>
+
+        <h3>application.yml Configuration</h3>
+        <pre>
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/haatekhori
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
+
+api:
+  base-path: /api/v1
+        </pre>
+
+        <!-- Section 3: Database Schema -->
+        <h2 id="database">3. Database Schema Design</h2>
+
+        <h3>3.1 alphabet_data</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>letter</td><td>CHAR(1)</td><td>NOT NULL, UNIQUE</td><td>Single letter (A-Z)</td></tr>
+            <tr><td>word</td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Associated word</td></tr>
+            <tr><td>sentence</td><td>VARCHAR(255)</td><td>NOT NULL</td><td>Example sentence</td></tr>
+            <tr><td>emoji</td><td>VARCHAR(10)</td><td>NOT NULL</td><td>Associated emoji</td></tr>
+            <tr><td>image_url</td><td>VARCHAR(500)</td><td>NULLABLE</td><td>Optional image URL</td></tr>
+            <tr><td>audio_url</td><td>VARCHAR(500)</td><td>NULLABLE</td><td>Optional pronunciation audio</td></tr>
+            <tr><td>created_at</td><td>TIMESTAMP</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Creation timestamp</td></tr>
+            <tr><td>updated_at</td><td>TIMESTAMP</td><td>ON UPDATE CURRENT_TIMESTAMP</td><td>Update timestamp</td></tr>
+        </table>
+
+        <h3>3.2 word_search_topics</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>topic_id</td><td>VARCHAR(50)</td><td>NOT NULL, UNIQUE</td><td>Topic identifier (e.g., "animals")</td></tr>
+            <tr><td>name</td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Display name</td></tr>
+            <tr><td>icon</td><td>VARCHAR(10)</td><td>NOT NULL</td><td>Emoji icon</td></tr>
+            <tr><td>difficulty</td><td>INT</td><td>DEFAULT 1</td><td>Difficulty level (1-3)</td></tr>
+            <tr><td>is_active</td><td>BOOLEAN</td><td>DEFAULT TRUE</td><td>Active status</td></tr>
+            <tr><td>created_at</td><td>TIMESTAMP</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Creation timestamp</td></tr>
+        </table>
+
+        <h3>3.3 word_search_words</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>topic_id</td><td>BIGINT</td><td>FOREIGN KEY -> word_search_topics(id)</td><td>Reference to topic</td></tr>
+            <tr><td>word</td><td>VARCHAR(50)</td><td>NOT NULL</td><td>Word for puzzle</td></tr>
+            <tr><td>display_order</td><td>INT</td><td>DEFAULT 0</td><td>Display order</td></tr>
+        </table>
+
+        <h3>3.4 counting_categories</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>category_id</td><td>VARCHAR(50)</td><td>NOT NULL, UNIQUE</td><td>Category identifier</td></tr>
+            <tr><td>name</td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Display name</td></tr>
+            <tr><td>min_count</td><td>INT</td><td>DEFAULT 1</td><td>Minimum count value</td></tr>
+            <tr><td>max_count</td><td>INT</td><td>DEFAULT 10</td><td>Maximum count value</td></tr>
+            <tr><td>is_active</td><td>BOOLEAN</td><td>DEFAULT TRUE</td><td>Active status</td></tr>
+        </table>
+
+        <h3>3.5 counting_items</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>category_id</td><td>BIGINT</td><td>FOREIGN KEY -> counting_categories(id)</td><td>Reference to category</td></tr>
+            <tr><td>item</td><td>VARCHAR(50)</td><td>NOT NULL</td><td>Emoji or image URL</td></tr>
+        </table>
+
+        <h3>3.6 memory_categories</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>category_id</td><td>VARCHAR(50)</td><td>NOT NULL, UNIQUE</td><td>Category identifier</td></tr>
+            <tr><td>name</td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Display name</td></tr>
+            <tr><td>emoji</td><td>VARCHAR(10)</td><td>NOT NULL</td><td>Category emoji</td></tr>
+            <tr><td>color</td><td>BIGINT</td><td>NOT NULL</td><td>ARGB color value</td></tr>
+            <tr><td>is_active</td><td>BOOLEAN</td><td>DEFAULT TRUE</td><td>Active status</td></tr>
+        </table>
+
+        <h3>3.7 memory_pairs</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>category_id</td><td>BIGINT</td><td>FOREIGN KEY -> memory_categories(id)</td><td>Reference to category</td></tr>
+            <tr><td>pair_item</td><td>VARCHAR(50)</td><td>NOT NULL</td><td>Emoji or image URL</td></tr>
+            <tr><td>display_order</td><td>INT</td><td>DEFAULT 0</td><td>Display order</td></tr>
+        </table>
+
+        <h3>3.8 pattern_sequences</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>pattern_id</td><td>VARCHAR(50)</td><td>NOT NULL, UNIQUE</td><td>Pattern identifier</td></tr>
+            <tr><td>category</td><td>VARCHAR(50)</td><td>NOT NULL</td><td>Category (shapes, numbers, colors, emoji)</td></tr>
+            <tr><td>sequence</td><td>JSON / TEXT</td><td>NOT NULL</td><td>JSON array of sequence items</td></tr>
+            <tr><td>answer</td><td>VARCHAR(50)</td><td>NOT NULL</td><td>Correct answer</td></tr>
+            <tr><td>options</td><td>JSON / TEXT</td><td>NOT NULL</td><td>JSON array of options</td></tr>
+            <tr><td>difficulty</td><td>INT</td><td>DEFAULT 1</td><td>Difficulty level (1-3)</td></tr>
+            <tr><td>is_active</td><td>BOOLEAN</td><td>DEFAULT TRUE</td><td>Active status</td></tr>
+        </table>
+
+        <h3>3.9 stick_builder_levels</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>level_number</td><td>INT</td><td>NOT NULL, UNIQUE</td><td>Level number (1-30)</td></tr>
+            <tr><td>equation</td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Equation or instruction</td></tr>
+            <tr><td>answer</td><td>VARCHAR(20)</td><td>NOT NULL</td><td>Correct answer</td></tr>
+            <tr><td>segment_pattern</td><td>JSON / TEXT</td><td>NOT NULL</td><td>JSON array of segment indices [0-6]</td></tr>
+            <tr><td>difficulty</td><td>INT</td><td>DEFAULT 1</td><td>Difficulty level (1-3)</td></tr>
+            <tr><td>is_active</td><td>BOOLEAN</td><td>DEFAULT TRUE</td><td>Active status</td></tr>
+        </table>
+
+        <h3>3.10 coloring_pages</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>page_id</td><td>VARCHAR(50)</td><td>NOT NULL, UNIQUE</td><td>Page identifier</td></tr>
+            <tr><td>name</td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Display name</td></tr>
+            <tr><td>emoji</td><td>VARCHAR(10)</td><td>NOT NULL</td><td>Page emoji</td></tr>
+            <tr><td>difficulty</td><td>INT</td><td>DEFAULT 1</td><td>Difficulty level (1-3)</td></tr>
+            <tr><td>svg_path</td><td>VARCHAR(500)</td><td>NULLABLE</td><td>SVG file URL</td></tr>
+            <tr><td>is_active</td><td>BOOLEAN</td><td>DEFAULT TRUE</td><td>Active status</td></tr>
+        </table>
+
+        <h3>3.11 color_palette</h3>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+            <tr><td>id</td><td>BIGINT</td><td>PRIMARY KEY, AUTO_INCREMENT</td><td>Unique identifier</td></tr>
+            <tr><td>color_id</td><td>VARCHAR(50)</td><td>NOT NULL, UNIQUE</td><td>Color identifier</td></tr>
+            <tr><td>name</td><td>VARCHAR(50)</td><td>NOT NULL</td><td>Color name</td></tr>
+            <tr><td>hex_color</td><td>VARCHAR(7)</td><td>NOT NULL</td><td>Hex color code (#RRGGBB)</td></tr>
+            <tr><td>display_order</td><td>INT</td><td>DEFAULT 0</td><td>Display order</td></tr>
+        </table>
+
+        <!-- Section 4: Entity Classes -->
+        <h2 id="entities">4. Entity Classes (Java/Kotlin)</h2>
+
+        <h3>4.1 AlphabetData Entity</h3>
+        <pre>
+@Entity
+@Table(name = "alphabet_data")
+data class AlphabetData(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    @Column(nullable = false, unique = true, length = 1)
+    val letter: Char,
+
+    @Column(nullable = false, length = 100)
+    val word: String,
+
+    @Column(nullable = false, length = 255)
+    val sentence: String,
+
+    @Column(nullable = false, length = 10)
+    val emoji: String,
+
+    @Column(name = "image_url", length = 500)
+    val imageUrl: String? = null,
+
+    @Column(name = "audio_url", length = 500)
+    val audioUrl: String? = null,
+
+    @Column(name = "created_at")
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+
+    @Column(name = "updated_at")
+    val updatedAt: LocalDateTime = LocalDateTime.now()
+)
+        </pre>
+
+        <h3>4.2 WordSearchTopic Entity</h3>
+        <pre>
+@Entity
+@Table(name = "word_search_topics")
+data class WordSearchTopic(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    @Column(name = "topic_id", nullable = false, unique = true, length = 50)
+    val topicId: String,
+
+    @Column(nullable = false, length = 100)
+    val name: String,
+
+    @Column(nullable = false, length = 10)
+    val icon: String,
+
+    @Column(nullable = false)
+    val difficulty: Int = 1,
+
+    @Column(name = "is_active", nullable = false)
+    val isActive: Boolean = true,
+
+    @OneToMany(mappedBy = "topic", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
+    val words: List&lt;WordSearchWord&gt; = emptyList()
+)
+
+@Entity
+@Table(name = "word_search_words")
+data class WordSearchWord(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "topic_id", nullable = false)
+    val topic: WordSearchTopic,
+
+    @Column(nullable = false, length = 50)
+    val word: String,
+
+    @Column(name = "display_order")
+    val displayOrder: Int = 0
+)
+        </pre>
+
+        <h3>4.3 PatternSequence Entity</h3>
+        <pre>
+@Entity
+@Table(name = "pattern_sequences")
+data class PatternSequence(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    @Column(name = "pattern_id", nullable = false, unique = true, length = 50)
+    val patternId: String,
+
+    @Column(nullable = false, length = 50)
+    val category: String,
+
+    @Column(nullable = false, columnDefinition = "JSON")
+    @Convert(converter = StringListConverter::class)
+    val sequence: List&lt;String&gt;,
+
+    @Column(nullable = false, length = 50)
+    val answer: String,
+
+    @Column(nullable = false, columnDefinition = "JSON")
+    @Convert(converter = StringListConverter::class)
+    val options: List&lt;String&gt;,
+
+    @Column(nullable = false)
+    val difficulty: Int = 1,
+
+    @Column(name = "is_active", nullable = false)
+    val isActive: Boolean = true
+)
+
+// JSON Converter
+@Converter
+class StringListConverter : AttributeConverter&lt;List&lt;String&gt;, String&gt; {
+    private val objectMapper = ObjectMapper()
+
+    override fun convertToDatabaseColumn(attribute: List&lt;String&gt;?): String {
+        return objectMapper.writeValueAsString(attribute ?: emptyList&lt;String&gt;())
+    }
+
+    override fun convertToEntityAttribute(dbData: String?): List&lt;String&gt; {
+        return dbData?.let {
+            objectMapper.readValue(it, object : TypeReference&lt;List&lt;String&gt;&gt;() {})
+        } ?: emptyList()
+    }
+}
+        </pre>
+
+        <h3>4.4 StickBuilderLevel Entity</h3>
+        <pre>
+@Entity
+@Table(name = "stick_builder_levels")
+data class StickBuilderLevel(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    @Column(name = "level_number", nullable = false, unique = true)
+    val levelNumber: Int,
+
+    @Column(nullable = false, length = 100)
+    val equation: String,
+
+    @Column(nullable = false, length = 20)
+    val answer: String,
+
+    @Column(name = "segment_pattern", nullable = false, columnDefinition = "JSON")
+    @Convert(converter = IntListConverter::class)
+    val segmentPattern: List&lt;Int&gt;,
+
+    @Column(nullable = false)
+    val difficulty: Int = 1,
+
+    @Column(name = "is_active", nullable = false)
+    val isActive: Boolean = true
+)
+        </pre>
+
+        <!-- Section 5: API Endpoints -->
+        <h2 id="api-endpoints">5. API Endpoints</h2>
+
+        <div class="note">
+            <strong>Base URL:</strong> <code>/api/v1</code><br>
+            <strong>Content-Type:</strong> <code>application/json</code>
+        </div>
+
+        <!-- Alphabet API -->
+        <h3>5.1 Alphabet API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/alphabet</span>
+        </div>
+        <p><strong>Description:</strong> Get all 26 letters with associated data</p>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "Alphabet data retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "letter": "A",
+      "word": "Apple",
+      "sentence": "A is for Apple",
+      "emoji": "🍎",
+      "imageUrl": null,
+      "audioUrl": null
+    },
+    {
+      "id": 2,
+      "letter": "B",
+      "word": "Ball",
+      "sentence": "B is for Ball",
+      "emoji": "🏀",
+      "imageUrl": null,
+      "audioUrl": null
+    }
+    // ... 26 letters total
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/alphabet/{letter}</span>
+        </div>
+        <p><strong>Description:</strong> Get data for a specific letter</p>
+        <p><strong>Path Parameters:</strong></p>
+        <ul>
+            <li><code>letter</code> <span class="badge required">Required</span> - Single letter (A-Z)</li>
+        </ul>
+
+        <!-- Word Search API -->
+        <h3>5.2 Word Search API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/word-search/topics</span>
+        </div>
+        <p><strong>Description:</strong> Get all word search topics with their word lists</p>
+        <p><strong>Query Parameters:</strong></p>
+        <ul>
+            <li><code>difficulty</code> <span class="badge optional">Optional</span> - Filter by difficulty (1-3)</li>
+            <li><code>active</code> <span class="badge optional">Optional</span> - Filter by active status (default: true)</li>
+        </ul>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "Word search topics retrieved successfully",
+  "data": [
+    {
+      "id": "countries",
+      "name": "Countries",
+      "icon": "🌍",
+      "words": ["INDIA", "CHINA", "JAPAN", "NEPAL", "USA", "UK"],
+      "difficulty": 1
+    },
+    {
+      "id": "animals",
+      "name": "Animals",
+      "icon": "🐾",
+      "words": ["CAT", "DOG", "LION", "TIGER", "BEAR", "FISH", "BIRD", "FROG"],
+      "difficulty": 1
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/word-search/topics/{topicId}</span>
+        </div>
+        <p><strong>Description:</strong> Get a specific topic by ID</p>
+
+        <!-- Counting Game API -->
+        <h3>5.3 Counting Game API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/counting/categories</span>
+        </div>
+        <p><strong>Description:</strong> Get all counting game categories</p>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "Counting categories retrieved successfully",
+  "data": [
+    {
+      "id": "animals",
+      "name": "Animals",
+      "items": ["🐕", "🐈", "🐘", "🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐵"],
+      "minCount": 1,
+      "maxCount": 10
+    },
+    {
+      "id": "fruits",
+      "name": "Fruits",
+      "items": ["🍎", "🍊", "🍋", "🍇", "🍓", "🍑", "🍒", "🥝", "🍌", "🍉"],
+      "minCount": 1,
+      "maxCount": 10
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <!-- Memory Match API -->
+        <h3>5.4 Memory Match API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/memory/categories</span>
+        </div>
+        <p><strong>Description:</strong> Get all memory match categories with card pairs</p>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "Memory categories retrieved successfully",
+  "data": [
+    {
+      "id": "animals",
+      "name": "Animals",
+      "emoji": "🐾",
+      "color": 4282866688,
+      "pairs": ["🐕", "🐈", "🐘", "🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐵", "🦊", "🐰"]
+    },
+    {
+      "id": "fruits",
+      "name": "Fruits",
+      "emoji": "🍎",
+      "color": 4293467747,
+      "pairs": ["🍎", "🍊", "🍋", "🍇", "🍓", "🍑", "🍒", "🥝", "🍌", "🍉", "🥭", "🍍"]
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <div class="note">
+            <strong>Color Format:</strong> The <code>color</code> field is a Long value representing ARGB color.
+            <br>Example: <code>0xFF4CAF50</code> (Green) = <code>4282866688</code> in decimal
+            <br>To convert: <code>Long.parseLong("FF4CAF50", 16)</code>
+        </div>
+
+        <!-- Pattern Game API -->
+        <h3>5.5 Pattern Game API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/patterns</span>
+        </div>
+        <p><strong>Description:</strong> Get pattern sequences for the "What comes next?" game</p>
+        <p><strong>Query Parameters:</strong></p>
+        <ul>
+            <li><code>category</code> <span class="badge optional">Optional</span> - Filter by category (shapes, numbers, colors, emoji)</li>
+            <li><code>difficulty</code> <span class="badge optional">Optional</span> - Filter by difficulty (1-3)</li>
+            <li><code>count</code> <span class="badge optional">Optional</span> - Limit number of results</li>
+            <li><code>random</code> <span class="badge optional">Optional</span> - Return random selection (default: false)</li>
+        </ul>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "Pattern sequences retrieved successfully",
+  "data": [
+    {
+      "id": "shape_1",
+      "category": "shapes",
+      "sequence": ["🔴", "🔵", "🔴", "🔵", "🔴"],
+      "answer": "🔵",
+      "options": ["🔵", "🔴", "🟢", "🟡"],
+      "difficulty": 1
+    },
+    {
+      "id": "number_1",
+      "category": "numbers",
+      "sequence": ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"],
+      "answer": "6️⃣",
+      "options": ["6️⃣", "7️⃣", "5️⃣", "4️⃣"],
+      "difficulty": 1
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <!-- Stick Builder API -->
+        <h3>5.6 Stick Builder API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/stick-builder/levels</span>
+        </div>
+        <p><strong>Description:</strong> Get all stick builder (7-segment display) levels</p>
+        <p><strong>Query Parameters:</strong></p>
+        <ul>
+            <li><code>difficulty</code> <span class="badge optional">Optional</span> - Filter by difficulty (1-3)</li>
+            <li><code>from</code> <span class="badge optional">Optional</span> - Starting level number</li>
+            <li><code>to</code> <span class="badge optional">Optional</span> - Ending level number</li>
+        </ul>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "Stick builder levels retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "equation": "Build: 0",
+      "answer": "0",
+      "segmentPattern": [0, 1, 2, 3, 4, 5],
+      "difficulty": 1
+    },
+    {
+      "id": 2,
+      "equation": "Build: 1",
+      "answer": "1",
+      "segmentPattern": [2, 4],
+      "difficulty": 1
+    },
+    {
+      "id": 11,
+      "equation": "1 + 1 = ?",
+      "answer": "2",
+      "segmentPattern": [0, 1, 6, 3, 4],
+      "difficulty": 2
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <div class="note">
+            <strong>7-Segment Display Reference:</strong>
+            <pre>
+    Segment 0
+      -----
+     |     |
+  1  |     |  2
+     |  6  |
+      -----
+     |     |
+  3  |     |  4
+     |     |
+      -----
+    Segment 5
+            </pre>
+            <p>Example: Number "0" uses segments [0, 1, 2, 3, 4, 5] (all except middle)</p>
+            <p>Example: Number "1" uses segments [2, 4] (right side only)</p>
+        </div>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/stick-builder/levels/{levelNumber}</span>
+        </div>
+        <p><strong>Description:</strong> Get a specific level by number</p>
+
+        <!-- Coloring Book API -->
+        <h3>5.7 Coloring Book API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/coloring/pages</span>
+        </div>
+        <p><strong>Description:</strong> Get all coloring pages and color palette</p>
+        <p><strong>Query Parameters:</strong></p>
+        <ul>
+            <li><code>difficulty</code> <span class="badge optional">Optional</span> - Filter by difficulty (1-3)</li>
+        </ul>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "Coloring pages retrieved successfully",
+  "data": {
+    "pages": [
+      {
+        "id": "star",
+        "name": "Star",
+        "emoji": "⭐",
+        "difficulty": 1,
+        "svgPath": "https://api.haatekhori.com/assets/coloring/star.svg"
+      },
+      {
+        "id": "heart",
+        "name": "Heart",
+        "emoji": "❤️",
+        "difficulty": 1,
+        "svgPath": "https://api.haatekhori.com/assets/coloring/heart.svg"
+      },
+      {
+        "id": "butterfly",
+        "name": "Butterfly",
+        "emoji": "🦋",
+        "difficulty": 2,
+        "svgPath": "https://api.haatekhori.com/assets/coloring/butterfly.svg"
+      }
+    ],
+    "colorPalette": [
+      { "id": "red", "name": "Red", "hexColor": "#E53935" },
+      { "id": "orange", "name": "Orange", "hexColor": "#FF9800" },
+      { "id": "yellow", "name": "Yellow", "hexColor": "#FFEB3B" },
+      { "id": "green", "name": "Green", "hexColor": "#4CAF50" },
+      { "id": "light_blue", "name": "Light Blue", "hexColor": "#03A9F4" },
+      { "id": "blue", "name": "Blue", "hexColor": "#2196F3" },
+      { "id": "purple", "name": "Purple", "hexColor": "#9C27B0" },
+      { "id": "pink", "name": "Pink", "hexColor": "#E91E63" },
+      { "id": "brown", "name": "Brown", "hexColor": "#795548" },
+      { "id": "black", "name": "Black", "hexColor": "#333333" }
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <!-- Bulk Content API -->
+        <h3>5.8 Bulk Content API (For Offline Caching)</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/content/all</span>
+        </div>
+        <p><strong>Description:</strong> Get all content in a single request for offline caching</p>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "message": "All content retrieved successfully",
+  "data": {
+    "alphabet": [...],
+    "wordSearchTopics": [...],
+    "countingCategories": [...],
+    "memoryCategories": [...],
+    "patternSequences": [...],
+    "stickBuilderLevels": [...],
+    "coloringPages": {...}
+  },
+  "lastUpdated": "2024-01-15T10:30:00Z",
+  "version": "1.0.0",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <!-- App Config API -->
+        <h3>5.9 App Configuration API</h3>
+
+        <div class="endpoint">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-url">/api/v1/config</span>
+        </div>
+        <p><strong>Description:</strong> Get app configuration and feature flags</p>
+        <p><strong>Response:</strong></p>
+        <pre>
+{
+  "success": true,
+  "data": {
+    "appVersion": "1.0.0",
+    "minSupportedVersion": "1.0.0",
+    "features": {
+      "alphabetEnabled": true,
+      "wordSearchEnabled": true,
+      "countingEnabled": true,
+      "memoryMatchEnabled": true,
+      "patternGameEnabled": true,
+      "stickBuilderEnabled": true,
+      "coloringEnabled": true
+    },
+    "settings": {
+      "maxCountingNumber": 10,
+      "memoryDifficulties": ["EASY", "MEDIUM", "HARD"],
+      "memoryPairCounts": {
+        "EASY": 4,
+        "MEDIUM": 6,
+        "HARD": 8
+      }
+    },
+    "maintenance": {
+      "enabled": false,
+      "message": null
+    }
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <!-- Section 6: Response Format -->
+        <h2 id="response-format">6. Standard Response Format</h2>
+
+        <h3>6.1 Success Response</h3>
+        <pre>
+{
+  "success": true,
+  "message": "Operation completed successfully",
+  "data": { ... },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <h3>6.2 Success Response with Pagination</h3>
+        <pre>
+{
+  "success": true,
+  "message": "Data retrieved successfully",
+  "data": [...],
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 5,
+    "totalItems": 50,
+    "itemsPerPage": 10,
+    "hasNext": true,
+    "hasPrevious": false
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <h3>6.3 Response DTO Classes</h3>
+        <pre>
+// Base Response
+data class ApiResponse&lt;T&gt;(
+    val success: Boolean,
+    val message: String,
+    val data: T?,
+    val timestamp: LocalDateTime = LocalDateTime.now()
+)
+
+// Paginated Response
+data class PaginatedResponse&lt;T&gt;(
+    val success: Boolean,
+    val message: String,
+    val data: List&lt;T&gt;,
+    val pagination: PaginationInfo,
+    val timestamp: LocalDateTime = LocalDateTime.now()
+)
+
+data class PaginationInfo(
+    val currentPage: Int,
+    val totalPages: Int,
+    val totalItems: Long,
+    val itemsPerPage: Int,
+    val hasNext: Boolean,
+    val hasPrevious: Boolean
+)
+        </pre>
+
+        <!-- Section 7: Error Handling -->
+        <h2 id="error-handling">7. Error Handling</h2>
+
+        <h3>7.1 Error Response Format</h3>
+        <pre>
+{
+  "success": false,
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "The requested resource was not found",
+    "details": "Alphabet letter 'Ñ' does not exist",
+    "path": "/api/v1/alphabet/Ñ"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+        </pre>
+
+        <h3>7.2 Error Codes</h3>
+        <table>
+            <tr><th>Code</th><th>HTTP Status</th><th>Description</th></tr>
+            <tr><td>VALIDATION_ERROR</td><td>400</td><td>Request validation failed</td></tr>
+            <tr><td>INVALID_PARAMETER</td><td>400</td><td>Invalid parameter value</td></tr>
+            <tr><td>RESOURCE_NOT_FOUND</td><td>404</td><td>Requested resource not found</td></tr>
+            <tr><td>METHOD_NOT_ALLOWED</td><td>405</td><td>HTTP method not supported</td></tr>
+            <tr><td>INTERNAL_ERROR</td><td>500</td><td>Internal server error</td></tr>
+            <tr><td>SERVICE_UNAVAILABLE</td><td>503</td><td>Service temporarily unavailable</td></tr>
+        </table>
+
+        <h3>7.3 Global Exception Handler</h3>
+        <pre>
+@RestControllerAdvice
+class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException::class)
+    fun handleNotFound(ex: ResourceNotFoundException): ResponseEntity&lt;ErrorResponse&gt; {
+        val error = ErrorResponse(
+            success = false,
+            error = ErrorDetails(
+                code = "RESOURCE_NOT_FOUND",
+                message = ex.message ?: "Resource not found",
+                details = null,
+                path = null
+            ),
+            timestamp = LocalDateTime.now()
+        )
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error)
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity&lt;ErrorResponse&gt; {
+        val details = ex.bindingResult.fieldErrors
+            .map { "${it.field}: ${it.defaultMessage}" }
+            .joinToString(", ")
+
+        val error = ErrorResponse(
+            success = false,
+            error = ErrorDetails(
+                code = "VALIDATION_ERROR",
+                message = "Validation failed",
+                details = details,
+                path = null
+            ),
+            timestamp = LocalDateTime.now()
+        )
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error)
+    }
+
+    @ExceptionHandler(Exception::class)
+    fun handleGeneral(ex: Exception): ResponseEntity&lt;ErrorResponse&gt; {
+        val error = ErrorResponse(
+            success = false,
+            error = ErrorDetails(
+                code = "INTERNAL_ERROR",
+                message = "An unexpected error occurred",
+                details = null,
+                path = null
+            ),
+            timestamp = LocalDateTime.now()
+        )
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error)
+    }
+}
+
+data class ErrorResponse(
+    val success: Boolean,
+    val error: ErrorDetails,
+    val timestamp: LocalDateTime
+)
+
+data class ErrorDetails(
+    val code: String,
+    val message: String,
+    val details: String?,
+    val path: String?
+)
+        </pre>
+
+        <!-- Section 8: Sample Data -->
+        <h2 id="sample-data">8. Sample Data for Database Seeding</h2>
+
+        <h3>8.1 Alphabet Data (26 entries)</h3>
+        <pre>
+INSERT INTO alphabet_data (letter, word, sentence, emoji) VALUES
+('A', 'Apple', 'A is for Apple', '🍎'),
+('B', 'Ball', 'B is for Ball', '🏀'),
+('C', 'Cat', 'C is for Cat', '🐱'),
+('D', 'Dog', 'D is for Dog', '🐕'),
+('E', 'Elephant', 'E is for Elephant', '🐘'),
+('F', 'Fish', 'F is for Fish', '🐟'),
+('G', 'Giraffe', 'G is for Giraffe', '🦒'),
+('H', 'House', 'H is for House', '🏠'),
+('I', 'Ice cream', 'I is for Ice cream', '🍦'),
+('J', 'Jelly', 'J is for Jelly', '🍮'),
+('K', 'Kite', 'K is for Kite', '🪁'),
+('L', 'Lion', 'L is for Lion', '🦁'),
+('M', 'Monkey', 'M is for Monkey', '🐵'),
+('N', 'Nest', 'N is for Nest', '🪺'),
+('O', 'Orange', 'O is for Orange', '🍊'),
+('P', 'Penguin', 'P is for Penguin', '🐧'),
+('Q', 'Queen', 'Q is for Queen', '👸'),
+('R', 'Rainbow', 'R is for Rainbow', '🌈'),
+('S', 'Sun', 'S is for Sun', '☀️'),
+('T', 'Tiger', 'T is for Tiger', '🐯'),
+('U', 'Umbrella', 'U is for Umbrella', '☂️'),
+('V', 'Violin', 'V is for Violin', '🎻'),
+('W', 'Whale', 'W is for Whale', '🐳'),
+('X', 'Xylophone', 'X is for Xylophone', '🎵'),
+('Y', 'Yak', 'Y is for Yak', '🦬'),
+('Z', 'Zebra', 'Z is for Zebra', '🦓');
+        </pre>
+
+        <h3>8.2 Word Search Topics</h3>
+        <pre>
+-- Topics
+INSERT INTO word_search_topics (topic_id, name, icon, difficulty) VALUES
+('countries', 'Countries', '🌍', 1),
+('body_parts', 'Body Parts', '🫀', 1),
+('vehicles', 'Vehicles', '🚗', 1),
+('food', 'Food', '🍕', 1),
+('animals', 'Animals', '🐾', 1),
+('colors', 'Colors', '🎨', 1),
+('fruits', 'Fruits', '🍎', 1),
+('family', 'Family', '👨‍👩‍👧‍👦', 1);
+
+-- Words for each topic
+INSERT INTO word_search_words (topic_id, word) VALUES
+-- Countries
+(1, 'INDIA'), (1, 'CHINA'), (1, 'JAPAN'), (1, 'NEPAL'), (1, 'USA'), (1, 'UK'),
+-- Body Parts
+(2, 'HAND'), (2, 'FOOT'), (2, 'HEAD'), (2, 'NOSE'), (2, 'EYE'), (2, 'EAR'),
+-- Vehicles
+(3, 'CAR'), (3, 'BUS'), (3, 'BIKE'), (3, 'TRAIN'), (3, 'PLANE'), (3, 'BOAT'),
+-- Food
+(4, 'RICE'), (4, 'BREAD'), (4, 'PIZZA'), (4, 'PASTA'), (4, 'SOUP'), (4, 'CAKE'),
+-- Animals
+(5, 'CAT'), (5, 'DOG'), (5, 'LION'), (5, 'TIGER'), (5, 'BEAR'), (5, 'FISH'),
+-- Colors
+(6, 'RED'), (6, 'BLUE'), (6, 'GREEN'), (6, 'YELLOW'), (6, 'PINK'), (6, 'WHITE'),
+-- Fruits
+(7, 'APPLE'), (7, 'MANGO'), (7, 'GRAPE'), (7, 'BANANA'), (7, 'ORANGE'), (7, 'PEACH'),
+-- Family
+(8, 'MOM'), (8, 'DAD'), (8, 'SISTER'), (8, 'BROTHER'), (8, 'BABY'), (8, 'GRANDMA');
+        </pre>
+
+        <h3>8.3 Stick Builder Levels (Sample)</h3>
+        <pre>
+INSERT INTO stick_builder_levels (level_number, equation, answer, segment_pattern, difficulty) VALUES
+-- Difficulty 1: Single digits
+(1, 'Build: 0', '0', '[0,1,2,3,4,5]', 1),
+(2, 'Build: 1', '1', '[2,4]', 1),
+(3, 'Build: 2', '2', '[0,1,6,3,4]', 1),
+(4, 'Build: 3', '3', '[0,1,6,4,5]', 1),
+(5, 'Build: 4', '4', '[1,2,6,4]', 1),
+(6, 'Build: 5', '5', '[0,2,6,4,5]', 1),
+(7, 'Build: 6', '6', '[0,2,3,4,5,6]', 1),
+(8, 'Build: 7', '7', '[0,1,4]', 1),
+(9, 'Build: 8', '8', '[0,1,2,3,4,5,6]', 1),
+(10, 'Build: 9', '9', '[0,1,2,4,5,6]', 1),
+
+-- Difficulty 2: Addition
+(11, '1 + 1 = ?', '2', '[0,1,6,3,4]', 2),
+(12, '2 + 1 = ?', '3', '[0,1,6,4,5]', 2),
+(13, '2 + 2 = ?', '4', '[1,2,6,4]', 2),
+(14, '3 + 2 = ?', '5', '[0,2,6,4,5]', 2),
+(15, '4 + 2 = ?', '6', '[0,2,3,4,5,6]', 2),
+
+-- Difficulty 3: Subtraction
+(21, '5 - 2 = ?', '3', '[0,1,6,4,5]', 3),
+(22, '7 - 3 = ?', '4', '[1,2,6,4]', 3),
+(23, '9 - 4 = ?', '5', '[0,2,6,4,5]', 3);
+        </pre>
+
+        <h3>8.4 Pattern Sequences (Sample)</h3>
+        <pre>
+INSERT INTO pattern_sequences (pattern_id, category, sequence, answer, options, difficulty) VALUES
+-- Shapes
+('shape_1', 'shapes', '["🔴","🔵","🔴","🔵","🔴"]', '🔵', '["🔵","🔴","🟢","🟡"]', 1),
+('shape_2', 'shapes', '["⭐","⭐","🌙","⭐","⭐"]', '🌙', '["🌙","⭐","☀️","🌟"]', 1),
+
+-- Numbers
+('number_1', 'numbers', '["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣"]', '6️⃣', '["6️⃣","7️⃣","5️⃣","4️⃣"]', 1),
+('number_2', 'numbers', '["2️⃣","4️⃣","6️⃣","8️⃣"]', '🔟', '["🔟","9️⃣","7️⃣","5️⃣"]', 2),
+
+-- Colors
+('color_1', 'colors', '["🔴","🟠","🟡","🟢","🔵"]', '🟣', '["🟣","🔴","⚫","⚪"]', 2),
+
+-- Emoji
+('emoji_1', 'emoji', '["🐱","🐶","🐱","🐶","🐱"]', '🐶', '["🐶","🐱","🐭","🐰"]', 1),
+('emoji_2', 'emoji', '["🍎","🍌","🍊","🍎","🍌"]', '🍊', '["🍊","🍎","🍌","🍇"]', 2);
+        </pre>
+
+        <h3>8.5 Color Palette</h3>
+        <pre>
+INSERT INTO color_palette (color_id, name, hex_color, display_order) VALUES
+('red', 'Red', '#E53935', 1),
+('orange', 'Orange', '#FF9800', 2),
+('yellow', 'Yellow', '#FFEB3B', 3),
+('green', 'Green', '#4CAF50', 4),
+('light_blue', 'Light Blue', '#03A9F4', 5),
+('blue', 'Blue', '#2196F3', 6),
+('purple', 'Purple', '#9C27B0', 7),
+('pink', 'Pink', '#E91E63', 8),
+('brown', 'Brown', '#795548', 9),
+('black', 'Black', '#333333', 10);
+        </pre>
+
+        <h3>8.6 Coloring Pages</h3>
+        <pre>
+INSERT INTO coloring_pages (page_id, name, emoji, difficulty) VALUES
+('star', 'Star', '⭐', 1),
+('heart', 'Heart', '❤️', 1),
+('sun', 'Sun', '☀️', 1),
+('tree', 'Tree', '🌳', 1),
+('flower', 'Flower', '🌸', 2),
+('butterfly', 'Butterfly', '🦋', 2),
+('house', 'House', '🏠', 2),
+('fish', 'Fish', '🐟', 2),
+('car', 'Car', '🚗', 2),
+('rainbow', 'Rainbow', '🌈', 3),
+('rocket', 'Rocket', '🚀', 2),
+('ice_cream', 'Ice Cream', '🍦', 2);
+        </pre>
+
+        <!-- Section 9: Project Structure -->
+        <h2 id="project-structure">9. Recommended Project Structure</h2>
+        <pre>
+src/main/kotlin/com/haatekhori/
+├── HaatekhoriApplication.kt
+├── config/
+│   ├── WebConfig.kt
+│   ├── CacheConfig.kt
+│   └── SwaggerConfig.kt
+├── controller/
+│   ├── AlphabetController.kt
+│   ├── WordSearchController.kt
+│   ├── CountingController.kt
+│   ├── MemoryController.kt
+│   ├── PatternController.kt
+│   ├── StickBuilderController.kt
+│   ├── ColoringController.kt
+│   └── ContentController.kt
+├── service/
+│   ├── AlphabetService.kt
+│   ├── WordSearchService.kt
+│   ├── CountingService.kt
+│   ├── MemoryService.kt
+│   ├── PatternService.kt
+│   ├── StickBuilderService.kt
+│   ├── ColoringService.kt
+│   └── ContentService.kt
+├── repository/
+│   ├── AlphabetRepository.kt
+│   ├── WordSearchTopicRepository.kt
+│   ├── CountingCategoryRepository.kt
+│   ├── MemoryCategoryRepository.kt
+│   ├── PatternSequenceRepository.kt
+│   ├── StickBuilderLevelRepository.kt
+│   └── ColoringPageRepository.kt
+├── entity/
+│   ├── AlphabetData.kt
+│   ├── WordSearchTopic.kt
+│   ├── WordSearchWord.kt
+│   ├── CountingCategory.kt
+│   ├── CountingItem.kt
+│   ├── MemoryCategory.kt
+│   ├── MemoryPair.kt
+│   ├── PatternSequence.kt
+│   ├── StickBuilderLevel.kt
+│   ├── ColoringPage.kt
+│   └── ColorPalette.kt
+├── dto/
+│   ├── response/
+│   │   ├── ApiResponse.kt
+│   │   ├── AlphabetResponse.kt
+│   │   ├── WordSearchResponse.kt
+│   │   └── ... (other response DTOs)
+│   └── request/
+│       └── ... (if needed for POST/PUT)
+├── exception/
+│   ├── GlobalExceptionHandler.kt
+│   ├── ResourceNotFoundException.kt
+│   └── ValidationException.kt
+├── converter/
+│   ├── StringListConverter.kt
+│   └── IntListConverter.kt
+└── util/
+    └── Constants.kt
+
+src/main/resources/
+├── application.yml
+├── application-dev.yml
+├── application-prod.yml
+├── data.sql (seed data)
+└── schema.sql (if needed)
+        </pre>
+
+        <div class="important">
+            <h4>Important Implementation Notes:</h4>
+            <ol>
+                <li><strong>Caching:</strong> Implement caching for frequently accessed data (alphabet, color palette)</li>
+                <li><strong>Validation:</strong> Use @Valid and validation annotations on request DTOs</li>
+                <li><strong>CORS:</strong> Configure CORS for mobile app access</li>
+                <li><strong>Logging:</strong> Add proper logging using SLF4J</li>
+                <li><strong>Testing:</strong> Write unit tests for services and integration tests for controllers</li>
+                <li><strong>API Documentation:</strong> Use SpringDoc/Swagger for auto-generated API docs</li>
+                <li><strong>Database Migration:</strong> Consider using Flyway or Liquibase for DB migrations</li>
+            </ol>
+        </div>
+
+        <hr style="margin: 40px 0;">
+        <p style="text-align: center; color: #666;">
+            <strong>HaateKhori API Specification</strong> | Version 1.0.0 |
+            Generated for Spring Boot Backend Development
+        </p>
+    </div>
+</body>
+</html>

@@ -65,6 +65,7 @@ import com.example.alphabettracer.model.FoundWord
 import com.example.alphabettracer.model.PlacedWord
 import com.example.alphabettracer.model.WordDirection
 import com.example.alphabettracer.model.WordSearchTopic
+import com.example.alphabettracer.ui.components.WordSearchTutorial
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -77,6 +78,16 @@ fun WordSearchGameScreen(
 ) {
     val context = LocalContext.current
     val gridSize = 10
+
+    // Tutorial state
+    var showTutorial by remember { mutableStateOf(false) }
+
+    // Check if tutorial should be shown
+    LaunchedEffect(Unit) {
+        if (!WordSearchStorage.hasShownTutorial(context)) {
+            showTutorial = true
+        }
+    }
 
     // Game state
     var grid by remember { mutableStateOf(Array(gridSize) { CharArray(gridSize) { ' ' } }) }
@@ -157,9 +168,9 @@ fun WordSearchGameScreen(
         }
     }
 
-    // Timer
-    LaunchedEffect(gameCompleted) {
-        while (!gameCompleted) {
+    // Timer - only runs when tutorial is not showing
+    LaunchedEffect(gameCompleted, showTutorial) {
+        while (!gameCompleted && !showTutorial) {
             delay(1000)
             elapsedSeconds++
         }
@@ -175,17 +186,18 @@ fun WordSearchGameScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFFFFF8E1), Color(0xFFE3F2FD))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFFFFF8E1), Color(0xFFE3F2FD))
+                    )
                 )
-            )
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
         // Header with topic name and timer
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -387,7 +399,21 @@ fun WordSearchGameScreen(
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
+        }
+
+        // Tutorial overlay
+        WordSearchTutorial(
+            isVisible = showTutorial,
+            onDismiss = {
+                showTutorial = false
+                WordSearchStorage.markTutorialShown(context)
+            },
+            onSkip = {
+                showTutorial = false
+                WordSearchStorage.markTutorialShown(context)
+            }
+        )
     }
 }
 

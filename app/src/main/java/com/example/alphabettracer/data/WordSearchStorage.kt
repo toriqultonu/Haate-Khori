@@ -12,6 +12,17 @@ object WordSearchStorage {
     private const val KEY_BEST_TIME_PREFIX = "topic_best_time_"
     private const val KEY_TOTAL_GAMES = "total_games_completed"
     private const val KEY_SAVED_GAME_PREFIX = "saved_game_"
+    private const val KEY_TUTORIAL_SHOWN = "word_search_tutorial_shown"
+
+    fun hasShownTutorial(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_TUTORIAL_SHOWN, false)
+    }
+
+    fun markTutorialShown(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_TUTORIAL_SHOWN, true).apply()
+    }
 
     fun saveTopicCompleted(context: Context, topicId: String, timeTakenSeconds: Long) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
