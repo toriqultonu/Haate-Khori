@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,9 +45,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.data.alphabetList
+import com.example.alphabettracer.data.LetterStorage
 import com.example.alphabettracer.model.MatchResult
 import com.example.alphabettracer.ui.components.ConfettiAnimation
 import com.example.alphabettracer.ui.components.TracingCanvas
+import com.example.alphabettracer.ui.components.TracingTutorial
 
 @Composable
 fun TracingScreen(
@@ -61,6 +64,14 @@ fun TracingScreen(
     val currentLetter = alphabetList[currentIndex]
     var showCongratsDialog by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
+    var showTutorial by remember { mutableStateOf(false) }
+
+    // Check if tutorial should be shown on first launch
+    LaunchedEffect(Unit) {
+        if (!LetterStorage.hasShownTutorial(context)) {
+            showTutorial = true
+        }
+    }
 
     // Confetti overlay - shows on top of everything
     Box(modifier = Modifier.fillMaxSize()) {
@@ -273,6 +284,19 @@ fun TracingScreen(
             isPlaying = showConfetti,
             onAnimationEnd = { showConfetti = false },
             modifier = Modifier.fillMaxSize()
+        )
+
+        // Tutorial overlay for first-time users
+        TracingTutorial(
+            isVisible = showTutorial,
+            onDismiss = {
+                showTutorial = false
+                LetterStorage.markTutorialShown(context)
+            },
+            onSkip = {
+                showTutorial = false
+                LetterStorage.markTutorialShown(context)
+            }
         )
     }
 
