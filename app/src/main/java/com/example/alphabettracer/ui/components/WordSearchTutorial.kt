@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,9 +26,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -46,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -286,61 +287,52 @@ private fun AnimatedHandPointer(
     )
 
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    val gridSize = screenWidth - 48.dp // Approximate grid size with padding
+    val trailLength = 150.dp
 
-    // Calculate hand position based on direction and progress
-    val (offsetX, offsetY) = when (direction) {
+    // Start and end positions for the trail
+    val (startX, startY, endX, endY) = when (direction) {
         HandDirection.HORIZONTAL -> {
-            val startX = -gridSize / 3
-            val endX = gridSize / 4
-            val x = startX + (endX - startX) * progress
-            Pair(x, 40.dp)
+            listOf(-trailLength / 2, 20.dp, trailLength / 2, 20.dp)
         }
         HandDirection.DIAGONAL -> {
-            val startX = -gridSize / 3
-            val endX = gridSize / 6
-            val startY = 0.dp
-            val endY = gridSize / 3
-            val x = startX + (endX - startX) * progress
-            val y = startY + (endY - startY) * progress
-            Pair(x, y)
+            listOf(-trailLength / 2, (-trailLength / 2) + 20.dp, trailLength / 2, (trailLength / 2) + 20.dp)
         }
         HandDirection.VERTICAL -> {
-            val startY = 0.dp
-            val endY = gridSize / 3
-            val y = startY + (endY - startY) * progress
-            Pair((-20).dp, y)
+            listOf(0.dp, -trailLength / 2 + 20.dp, 0.dp, trailLength / 2 + 20.dp)
         }
-        HandDirection.NONE -> Pair(0.dp, 0.dp)
+        HandDirection.NONE -> listOf(0.dp, 0.dp, 0.dp, 0.dp)
     }
 
-    // Draw selection trail
-    Box(modifier = modifier) {
-        // Selection highlight trail
+    // Current hand position based on progress
+    val currentX = startX + (endX - startX) * progress
+    val currentY = startY + (endY - startY) * progress
+
+    Box(
+        modifier = modifier
+            .size(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Draw selection trail using Canvas
         if (progress > 0.1f) {
-            Box(
-                modifier = Modifier
-                    .offset(x = offsetX - 60.dp, y = offsetY - 20.dp)
-                    .width(when (direction) {
-                        HandDirection.HORIZONTAL -> 120.dp * progress
-                        HandDirection.DIAGONAL -> 100.dp * progress
-                        else -> 40.dp
-                    })
-                    .height(when (direction) {
-                        HandDirection.VERTICAL -> 100.dp * progress
-                        HandDirection.DIAGONAL -> 40.dp
-                        else -> 40.dp
-                    })
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFF6200EE).copy(alpha = 0.3f),
-                                Color(0xFF6200EE).copy(alpha = 0.5f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-            )
+            Canvas(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                val centerX = size.width / 2
+                val centerY = size.height / 2
+
+                val lineStartX = centerX + startX.toPx()
+                val lineStartY = centerY + startY.toPx()
+                val lineEndX = centerX + startX.toPx() + (endX.toPx() - startX.toPx()) * progress
+                val lineEndY = centerY + startY.toPx() + (endY.toPx() - startY.toPx()) * progress
+
+                drawLine(
+                    color = Color(0xFF6200EE).copy(alpha = 0.5f),
+                    start = Offset(lineStartX, lineStartY),
+                    end = Offset(lineEndX, lineEndY),
+                    strokeWidth = 40.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
         }
 
         // Hand emoji
@@ -348,7 +340,7 @@ private fun AnimatedHandPointer(
             text = "👆",
             fontSize = 50.sp,
             modifier = Modifier
-                .offset(x = offsetX, y = offsetY)
+                .offset(x = currentX, y = currentY)
                 .scale(scale)
         )
     }
