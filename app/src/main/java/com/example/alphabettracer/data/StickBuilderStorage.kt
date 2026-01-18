@@ -8,6 +8,7 @@ object StickBuilderStorage {
     private const val KEY_CURRENT_LEVEL = "current_level"
     private const val KEY_TOTAL_COMPLETED = "total_completed"
     private const val KEY_HIGHEST_LEVEL = "highest_level"
+    private const val KEY_TUTORIAL_SHOWN = "stick_builder_tutorial_shown"
 
     fun saveChallengeCompleted(context: Context, challengeId: Int) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -62,5 +63,15 @@ object StickBuilderStorage {
     fun clearAllProgress(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
+    }
+
+    fun hasShownTutorial(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_TUTORIAL_SHOWN, false)
+    }
+
+    fun markTutorialShown(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_TUTORIAL_SHOWN, true).apply()
     }
 }
