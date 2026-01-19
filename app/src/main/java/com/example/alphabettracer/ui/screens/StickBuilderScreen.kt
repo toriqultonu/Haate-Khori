@@ -3,6 +3,7 @@ package com.example.alphabettracer.ui.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -67,6 +68,7 @@ import com.example.alphabettracer.data.StickBuilderStorage
 import com.example.alphabettracer.data.StickSegment
 import com.example.alphabettracer.data.stickColors
 import com.example.alphabettracer.ui.components.ConfettiAnimation
+import com.example.alphabettracer.ui.components.StickBuilderTutorial
 import kotlin.math.abs
 
 // Represents a stick placed on the canvas
@@ -125,6 +127,16 @@ fun StickBuilderScreen(
     var showHint by remember { mutableStateOf(false) }
     var levelCompleted by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
+
+    // Tutorial state
+    var showTutorial by remember { mutableStateOf(false) }
+
+    // Check if tutorial should be shown on first launch
+    LaunchedEffect(Unit) {
+        if (!StickBuilderStorage.hasShownTutorial(context)) {
+            showTutorial = true
+        }
+    }
 
     // Tray sticks - 8 sticks (4 horizontal, 4 vertical)
     val traySticks = remember { mutableStateListOf<TrayStick>() }
@@ -590,6 +602,19 @@ fun StickBuilderScreen(
             isPlaying = showConfetti,
             onAnimationEnd = { showConfetti = false },
             modifier = Modifier.fillMaxSize()
+        )
+
+        // Tutorial overlay for first-time users
+        StickBuilderTutorial(
+            isVisible = showTutorial,
+            onDismiss = {
+                showTutorial = false
+                StickBuilderStorage.markTutorialShown(context)
+            },
+            onSkip = {
+                showTutorial = false
+                StickBuilderStorage.markTutorialShown(context)
+            }
         )
     }
 }

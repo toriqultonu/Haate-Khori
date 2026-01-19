@@ -55,6 +55,7 @@ import com.example.alphabettracer.data.calculateMemoryStars
 import com.example.alphabettracer.data.generateMemoryDeck
 import com.example.alphabettracer.data.memoryCategories
 import com.example.alphabettracer.ui.components.ConfettiAnimation
+import com.example.alphabettracer.ui.components.MemoryMatchTutorial
 import kotlinx.coroutines.delay
 
 @Composable
@@ -77,6 +78,14 @@ fun MemoryMatchScreen(
     var showConfetti by remember { mutableStateOf(false) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var gameStarted by remember { mutableStateOf(false) }
+    var showTutorial by remember { mutableStateOf(false) }
+
+    // Check if tutorial should be shown on first launch
+    LaunchedEffect(Unit) {
+        if (!MemoryMatchStorage.hasShownTutorial(context)) {
+            showTutorial = true
+        }
+    }
 
     // Timer
     LaunchedEffect(gameStarted, gameComplete) {
@@ -272,6 +281,19 @@ fun MemoryMatchScreen(
             isPlaying = showConfetti,
             onAnimationEnd = { showConfetti = false },
             modifier = Modifier.fillMaxSize()
+        )
+
+        // Tutorial overlay for first-time users
+        MemoryMatchTutorial(
+            isVisible = showTutorial,
+            onDismiss = {
+                showTutorial = false
+                MemoryMatchStorage.markTutorialShown(context)
+            },
+            onSkip = {
+                showTutorial = false
+                MemoryMatchStorage.markTutorialShown(context)
+            }
         )
     }
 }

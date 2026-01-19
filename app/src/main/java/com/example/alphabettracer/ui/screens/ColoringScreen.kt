@@ -58,13 +58,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alphabettracer.content.ColoringContent
 import com.example.alphabettracer.content.ColoringPage
+import com.example.alphabettracer.data.ColoringStorage
 import com.example.alphabettracer.ui.components.ColoringCanvas
+import com.example.alphabettracer.ui.components.ColoringTutorial
 import com.example.alphabettracer.ui.components.DrawingPath
 
 /**
@@ -74,53 +77,74 @@ import com.example.alphabettracer.ui.components.DrawingPath
 fun ColoringScreen(
     onBackPressed: () -> Unit
 ) {
+    val context = LocalContext.current
     var selectedPage by remember { mutableStateOf<ColoringPage?>(null) }
     var selectedColor by remember { mutableStateOf(ColoringContent.colorPalette.first().color) }
     var brushSize by remember { mutableFloatStateOf(20f) }
     var isEraser by remember { mutableStateOf(false) }
     val drawingPaths = remember { mutableStateListOf<DrawingPath>() }
+    var showTutorial by remember { mutableStateOf(false) }
 
     // Animation states
     var showContent by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         showContent = true
+        // Check if tutorial should be shown on first launch
+        if (!ColoringStorage.hasShownTutorial(context)) {
+            showTutorial = true
+        }
     }
 
-    if (selectedPage == null) {
-        // Shape selection screen
-        ShapeSelectionScreen(
-            showContent = showContent,
-            onShapeSelected = { page ->
-                selectedPage = page
-                drawingPaths.clear()
-            }
-        )
-    } else {
-        // Coloring screen
-        ColoringWorkspace(
-            page = selectedPage!!,
-            selectedColor = selectedColor,
-            brushSize = brushSize,
-            isEraser = isEraser,
-            drawingPaths = drawingPaths,
-            onColorSelected = {
-                selectedColor = it
-                isEraser = false
-            },
-            onBrushSizeChanged = { brushSize = it },
-            onEraserToggle = { isEraser = !isEraser },
-            onClear = {
-                drawingPaths.clear()
-            },
-            onUndo = {
-                if (drawingPaths.isNotEmpty()) {
-                    drawingPaths.removeAt(drawingPaths.lastIndex)
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (selectedPage == null) {
+            // Shape selection screen
+            ShapeSelectionScreen(
+                showContent = showContent,
+                onShapeSelected = { page ->
+                    selectedPage = page
+                    drawingPaths.clear()
                 }
+            )
+        } else {
+            // Coloring screen
+            ColoringWorkspace(
+                page = selectedPage!!,
+                selectedColor = selectedColor,
+                brushSize = brushSize,
+                isEraser = isEraser,
+                drawingPaths = drawingPaths,
+                onColorSelected = {
+                    selectedColor = it
+                    isEraser = false
+                },
+                onBrushSizeChanged = { brushSize = it },
+                onEraserToggle = { isEraser = !isEraser },
+                onClear = {
+                    drawingPaths.clear()
+                },
+                onUndo = {
+                    if (drawingPaths.isNotEmpty()) {
+                        drawingPaths.removeAt(drawingPaths.lastIndex)
+                    }
+                },
+                onBack = {
+                    selectedPage = null
+                    drawingPaths.clear()
+                }
+            )
+        }
+
+        // Tutorial overlay for first-time users
+        ColoringTutorial(
+            isVisible = showTutorial,
+            onDismiss = {
+                showTutorial = false
+                ColoringStorage.markTutorialShown(context)
             },
-            onBack = {
-                selectedPage = null
-                drawingPaths.clear()
+            onSkip = {
+                showTutorial = false
+                ColoringStorage.markTutorialShown(context)
             }
         )
     }

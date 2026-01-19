@@ -43,6 +43,7 @@ app/src/main/java/com/example/alphabettracer/
 │   ├── CountingGameStorage.kt          # Counting game stats
 │   ├── MemoryMatchStorage.kt           # Memory match stats
 │   ├── PatternStorage.kt               # Pattern game stats
+│   ├── ColoringStorage.kt              # Coloring book settings
 │   ├── AlphabetList.kt                 # Alphabet data wrapper
 │   └── *Data.kt                        # Various data definitions
 ├── model/                              # Data models & enums
@@ -77,7 +78,10 @@ app/src/main/java/com/example/alphabettracer/
     │   ├── AchievementPopup.kt         # Unlock dialog
     │   ├── ConfettiAnimation.kt        # Celebration particles
     │   ├── AchievementSection.kt       # Achievement display
-    │   └── WordSearchTutorial.kt       # Interactive tutorial overlay
+    │   ├── WordSearchTutorial.kt       # Word search tutorial overlay
+    │   ├── TracingTutorial.kt          # Letter tracing tutorial overlay
+    │   ├── MemoryMatchTutorial.kt      # Memory match tutorial overlay
+    │   └── ColoringTutorial.kt         # Coloring book tutorial overlay
     └── theme/                          # Material theming
         ├── Theme.kt
         ├── Color.kt
@@ -89,7 +93,7 @@ app/src/main/java/com/example/alphabettracer/
 ## Features & Screens
 
 ### 1. Letter Tracing (Core Feature)
-**Files:** `TracingScreen.kt`, `TracingCanvas.kt`
+**Files:** `TracingScreen.kt`, `TracingCanvas.kt`, `TracingTutorial.kt`
 
 - Touch-based letter drawing for A-Z
 - Visual guide dots showing correct tracing path
@@ -102,6 +106,11 @@ app/src/main/java/com/example/alphabettracer/
   - GOOD (>55%): Yellow indicator
   - POOR (>35%): Orange indicator
   - NONE: No indicator
+- **First-time interactive tutorial:**
+  - 5-step walkthrough: Introduction, Trace the Letter, Pick Colors, Check Work, Ready
+  - Animated hand traces letter "A" path on canvas
+  - Demonstrates color picker and check button interactions
+  - Tutorial state persisted in `LetterStorage`
 
 ### 2. Home Screen
 **File:** `LetterGridScreen.kt`
@@ -148,12 +157,17 @@ app/src/main/java/com/example/alphabettracer/
 - Score and streak tracking
 
 ### 6. Memory Match
-**File:** `MemoryMatchScreen.kt`
+**Files:** `MemoryMatchScreen.kt`, `MemoryMatchTutorial.kt`
 
 - 6 categories: Animals, Fruits, Numbers, Shapes, Sports, Food
 - 4 difficulties: Easy (4 pairs) to Expert (12 pairs)
 - Card flip animations
 - Move/time tracking with star rating
+- **First-time interactive tutorial:**
+  - 5-step walkthrough: Introduction, Tap to Flip, Find Match, Remember Positions, Ready
+  - Animated card flip demonstrations
+  - Shows matching vs non-matching card scenarios
+  - Tutorial state persisted in `MemoryMatchStorage`
 
 ### 7. Pattern Recognition
 **File:** `PatternGameScreen.kt`
@@ -163,12 +177,18 @@ app/src/main/java/com/example/alphabettracer/
 - 10 questions per game with 4 options
 
 ### 8. Coloring Book
-**Files:** `ColoringScreen.kt`, `ColoringCanvas.kt`
+**Files:** `ColoringScreen.kt`, `ColoringCanvas.kt`, `ColoringTutorial.kt`
 
 - 12 pages: Star, Heart, Sun, Flower, Butterfly, House, Fish, Car, Tree, Rainbow, Rocket, Ice Cream
 - Free-form drawing with 10 colors
 - Adjustable brush size
 - Eraser, undo, and clear functions
+- **First-time interactive tutorial:**
+  - 6-step walkthrough: Introduction, Pick Picture, Draw & Color, Choose Colors, Eraser & Tools, Ready
+  - Animated shape selection demonstration
+  - Shows circular drawing motion on canvas
+  - Color palette and eraser tool animations
+  - Tutorial state persisted in `ColoringStorage`
 
 ---
 
@@ -301,13 +321,14 @@ data class StickBuilderLevelContent(
 
 | Storage Class | Preferences Name | Purpose |
 |---------------|------------------|---------|
-| `LetterStorage` | `haate_khori_prefs` | Letter progress, color/stroke preferences |
+| `LetterStorage` | `haate_khori_prefs` | Letter progress, color/stroke preferences, tutorial flag |
 | `AchievementStorage` | `haate_khori_achievements` | Achievements, streaks |
-| `WordSearchStorage` | `word_search_prefs` | Game state, completion, times, tutorial shown flag |
+| `WordSearchStorage` | `word_search_prefs` | Game state, completion, times, tutorial flag |
 | `StickBuilderStorage` | `stick_builder_prefs` | Level progress |
 | `CountingGameStorage` | `counting_game_prefs` | Scores, stats |
-| `MemoryMatchStorage` | `memory_match_prefs` | Best moves/times |
+| `MemoryMatchStorage` | `memory_match_prefs` | Best moves/times, tutorial flag |
 | `PatternStorage` | `pattern_game_prefs` | Scores, stats |
+| `ColoringStorage` | `coloring_prefs` | Tutorial flag |
 
 ---
 
@@ -364,6 +385,32 @@ Interactive first-time tutorial overlay:
 - Auto-advance with tap-to-continue option
 - Skip button for experienced users
 - Persists "tutorial shown" flag via `WordSearchStorage`
+
+### TracingTutorial
+Interactive first-time tutorial for letter tracing:
+- 5-step instruction flow with purple theme
+- Animated hand traces letter "A" path using Canvas
+- Demonstrates color picker tap animation
+- Shows check button interaction
+- Auto-advances every 3.5 seconds
+- Persists via `LetterStorage.hasShownTutorial()`
+
+### MemoryMatchTutorial
+Interactive first-time tutorial for memory match:
+- 5-step instruction flow with purple theme (#9C27B0)
+- Animated card flip using `graphicsLayer { rotationY }`
+- Shows matching pairs with checkmark animation
+- Demonstrates non-matching scenario with thinking emoji
+- Persists via `MemoryMatchStorage.hasShownTutorial()`
+
+### ColoringTutorial
+Interactive first-time tutorial for coloring book:
+- 6-step instruction flow with pink theme (#E91E63)
+- Animated shape card selection
+- Circular drawing motion on canvas
+- Color palette tap animation with selection indicator
+- Eraser toggle and brush size animation
+- Persists via `ColoringStorage.hasShownTutorial()`
 
 ---
 
@@ -454,10 +501,22 @@ org.json
 
 ### Adding First-Time Tutorial to a Game
 1. Add `hasShownTutorial()` and `markTutorialShown()` functions to game's storage class
-2. Create tutorial component in `ui/components/` (see `WordSearchTutorial.kt` as reference)
-3. Add tutorial state and visibility check in game screen using `LaunchedEffect`
+2. Create tutorial component in `ui/components/` following the pattern:
+   - Use `AnimatedVisibility` for fade in/out
+   - Create `TutorialStep` data class with emoji, title, description, animationType
+   - Use `rememberInfiniteTransition` for hand pointer animations
+   - Include step indicator dots, skip button, and tap-to-continue hint
+   - Auto-advance every 3.5 seconds using `LaunchedEffect`
+3. Add tutorial state and visibility check in game screen:
+   ```kotlin
+   var showTutorial by remember { mutableStateOf(false) }
+   LaunchedEffect(Unit) {
+       if (!Storage.hasShownTutorial(context)) showTutorial = true
+   }
+   ```
 4. Wrap game content in `Box` and overlay tutorial component
-5. Pause game timer while tutorial is showing
+5. Call `markTutorialShown()` on both dismiss and skip callbacks
+6. Reference existing tutorials: `TracingTutorial.kt`, `MemoryMatchTutorial.kt`, `ColoringTutorial.kt`
 
 ---
 
@@ -499,7 +558,11 @@ Recent commits focus on:
 - Confetti animations
 - Coloring book feature
 - Navigation improvements
-- Word Search interactive tutorial with animated hand pointer
+- Interactive tutorials with animated hand pointers for:
+  - Word Search (horizontal/diagonal selection)
+  - Letter Tracing (trace path, colors, check)
+  - Memory Match (flip cards, find pairs)
+  - Coloring Book (shape selection, drawing, tools)
 
 ---
 
@@ -514,7 +577,8 @@ Recent commits focus on:
 | Navigation | `navigation/AppNavigation.kt`, `AppNavHost.kt` |
 | Letter tracing | `ui/screens/TracingScreen.kt`, `ui/components/TracingCanvas.kt` |
 | Coloring | `ui/screens/ColoringScreen.kt`, `ui/components/ColoringCanvas.kt` |
-| Word Search tutorial | `ui/components/WordSearchTutorial.kt` |
+| Memory Match | `ui/screens/MemoryMatchScreen.kt` |
+| Tutorials | `ui/components/*Tutorial.kt` (WordSearch, Tracing, MemoryMatch, Coloring) |
 | All content | `content/*.kt` |
 | All storage | `data/*Storage.kt` |
 | All models | `model/*.kt` |
@@ -539,3 +603,4 @@ Recent commits focus on:
 5. **Single activity** - Navigation handled by Navigation Compose
 6. **Content is separated** - Easy to swap for API data later
 7. **Kid-safe** - No ads, no in-app purchases, no external links
+8. **Tutorials pattern** - New game screens should include first-time tutorials following existing patterns in `*Tutorial.kt` files
